@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<title>AI Agent Command Board — Shan Group LLC</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%230071e3%22/><text x=%2250%22 y=%2268%22 font-size=%2260%22 font-weight=%22800%22 fill=%22white%22 text-anchor=%22middle%22 font-family=%22sans-serif%22>S</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  html, body, #root { height: 100%; margin: 0; padding: 0; }
+  body { -webkit-font-smoothing: antialiased; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect, useCallback } = React;
+
+
+// ── DESIGN TOKENS ─────────────────────────────────────────────────────────────
+const C = {
+  bg:"#f5f5f7", surface:"#ffffff", surface2:"#fbfbfd",
+  line:"rgba(0,0,0,0.08)", line2:"rgba(0,0,0,0.05)",
+  text:"#1d1d1f", text2:"#6e6e73", text3:"#aeaeb2",
+  blue:"#0071e3", blueBg:"#e8f1fb",
+  green:"#34c759", greenBg:"#e9f9ec",
+  red:"#ff3b30", redBg:"#fff1f0",
+  orange:"#ff9500", orangeBg:"#fff8ec",
+  ink:"#1d1d1f",
+};
+
+const S = {
+  sm:"0 1px 2px rgba(0,0,0,0.04),0 2px 8px rgba(0,0,0,0.04)",
+  md:"0 2px 4px rgba(0,0,0,0.04),0 8px 24px rgba(0,0,0,0.06)",
+};
+
+const F = "-apple-system,BlinkMacSystemFont,'Inter','SF Pro Text',sans-serif";
+
+// ── COMPANY CONTEXT ───────────────────────────────────────────────────────────
+const CTX = `SHAN GROUP LLC - VERIFIED PROFILE
+LEGAL: Shan Group, LLC | DBA: Accessible Home Health Care of Aventura | OWNER: Ali Mandsaurwala
+EIN: 27-3818953 | UEI: KFF4PM5PM468 | CAGE: 8WJN9 | E-Verify: 2118796
+ADDRESS: 15251 NE 18th Avenue, Suite 9, North Miami Beach, FL 33162 | PHONE: 305.627.3103 | EMAIL: alim@ahhcfl.com
+STAFF: 1,234 RNs | 508 LPNs | 698 CNAs | 1,074 HHAs
+DEPLOYMENT: 50 nurses 24hrs | 40-60 in 72hrs | 500-750 in 7-12 days
+CERTS: SAM.gov Active; FL License #299993833; Joint Commission #508491; FL Minority Business Cert to 10/26/2025; HIPAA BAA-capable; Level 2 FDLE; 10-panel drug screen
+INSURANCE: GL $1M/$3M Philadelphia Indemnity PHPK2504272 | Workers Comp Bridgefield 019654222 | Prof Liability $1M | NEA Insurance Group 305-221-2400
+PAST PERFORMANCE: FDEM D0083 17 missions $22,005,180 (COVID vaccination 600+ staff; Hurricane Ian/Nicole 250+ personnel); Oregon OHA #174244 + Price Agreement thru 2028 $60M ceiling; Hillsborough County ITB-24-24672 3-yr active 56 shelters; University of Miami Rate Agreement RN $110-122.50/hr; Mount Sinai 2-yr RN Tele $125/hr RN ICU $140/hr; Chicago Public Schools RFP 23-359
+ACTIVE BIDS: Broward BARC GEN2124024B1 $2.25M Pending (148 beds up to 3 vendors INSURANCE GAP needs $2M Prof Liability); Sarasota 242595MN $1.72M Submitted 4/2/2024 (lowest price wins); Orange County Y24-121 $1.06M/yr Submitted 1/22/2024 (corrections RN $110/hr 4-hr response); Pinellas 23-0509-RFP Submitted 4/3/2023 (36-month + renewal); Citrus BH-2023-RFQ-01 Active; UM Active; FDEM $22M+ Active
+REFERENCES: Grace Sullivan AC Disaster 720-215-9199; Eric Gebbie OHA 503-358-7621; Nick Mayernick FDEM 850-273-2630; Leanne LeFebvre InnovativeGx 210-352-5175
+RATES: Emergency MD/PA/APRN $130/hr|RN Mgr $110|RN Charge $95|RN Triage $85|LPN $70|CNA $55. Corrections RN $110 LPN $85. UM RN $110-122.50. Oregon RN Lead $205/hr. RFQ 345743-Q1 $74,257.14.
+ALWAYS USE: UEI KFF4PM5PM468|CAGE 8WJN9|EIN 27-3818953|FL License #299993833
+ALWAYS CITE: FDEM 17 missions $22M|Oregon $60M thru 2028|Hillsborough 56 shelters`;
+
+const HO = "\nRespond in structured executive format. Be specific and actionable. Use ONLY verified data from this profile. Never invent contract numbers or rates.";
+
+// ── AGENTS ────────────────────────────────────────────────────────────────────
+const AGENTS = [
+  { id:"scout",      name:"Scout",        title:"Contract Intelligence",   icon:"🔍", color:"#0071e3",
+    tagline:"Finds active RFPs on SAM.gov, county portals, FEMA and VA",
+    ph:"Find active Florida nursing RFPs closing in 60 days",
+    system:`You are SCOUT for Shan Group LLC.\n${CTX}\nFind and prioritize government contract opportunities. For each provide: Agency, Solicitation #, Due Date, Value, Match Score 1-10, Why We Qualify (cite specific past performance), Recommended Action. Priority targets: Broward GEN2124024B1, Sarasota 242595MN, Orange County Y24-121, Pinellas 23-0509-RFP, Citrus BH-2023-RFQ-01.${HO}` },
+  { id:"intel",      name:"Intel",        title:"Market Intelligence",     icon:"🧠", color:"#0891b2",
+    tagline:"Competitive analysis, incumbent research, win probability",
+    ph:"Analyze our win probability on Broward County GEN2124024B1",
+    system:`You are INTEL for Shan Group LLC.\n${CTX}\nCompetitive intelligence on all active bids. Broward BARC GEN2124024B1=148 beds up to 3 vendors $2.25M. Sarasota 242595MN=lowest price wins submitted 4/2/2024. Orange County Y24-121=$1.06M corrections signed 1/22/2024. Pinellas 23-0509-RFP=36-month signed 4/3/2023. For each: Incumbent, Competition Level, Win Probability %, Differentiators, Risk Factors, Win Strategy.${HO}` },
+  { id:"writer",     name:"Writer",       title:"Proposal Engine",         icon:"✍️", color:"#7c3aed",
+    tagline:"Writes complete government proposals with verified data",
+    ph:"Write the past performance section for Broward BARC GEN2124024B1",
+    system:`You are WRITER for Shan Group LLC.\n${CTX}\nDraft complete compliant proposals. ALWAYS include UEI KFF4PM5PM468|CAGE 8WJN9|EIN 27-3818953|FL License #299993833|Staff: 1,234 RNs 508 LPNs 698 CNAs 1,074 HHAs|FDEM 17 missions $22,005,180|OHA $60M|Hillsborough 56 shelters|References: Grace Sullivan 720-215-9199; Eric Gebbie 503-358-7621; Nick Mayernick 850-273-2630. Structure: Executive Summary, Technical Approach, Management Plan, Key Personnel, Past Performance, Certifications, Price Rationale.${HO}` },
+  { id:"emailer",    name:"Emailer",      title:"Outreach & Follow-up",    icon:"📧", color:"#059669",
+    tagline:"Drafts professional emails to real contracting officers",
+    ph:"Draft a follow-up email to Broward County BARC re GEN2124024B1",
+    system:`You are EMAILER for Shan Group LLC.\n${CTX}\nDraft professional outreach emails. REAL CONTACTS: Broward=CONE OF SILENCE only Purchasing Division 954-357-6400. Sarasota=Melissa Neel. Orange County=Melisa Vergara 407-836-5635. Hillsborough=Israel Segarra 813-272-5636. Oregon=Eric Gebbie eric.n.gebbie@state.or.us. FDEM=Nick Mayernick. ALWAYS include: Shan Group LLC DBA AHHC of Aventura|UEI KFF4PM5PM468|CAGE 8WJN9|alim@ahhcfl.com|305.627.3103.${HO}` },
+  { id:"commander",  name:"Commander",    title:"Bid Strategy",            icon:"⚔️", color:"#b45309",
+    tagline:"Go/No-Go decisions with real bid data and win probability",
+    ph:"Go/No-Go analysis for Broward County BARC GEN2124024B1",
+    system:`You are COMMANDER for Shan Group LLC.\n${CTX}\nDecisive Go/No-Go strategy. Broward BARC $2.25M behavioral health 148 beds up to 3 vendors insurance gap. Sarasota $1.72M disaster shelter lowest price wins. Orange County $1.06M/yr corrections. Pinellas 36-month county health. Output: GO/NO-GO verdict, Win Probability %, Top 3 Strengths, Top 2 Risks, Pricing Strategy, Differentiators. Be decisive.${HO}` },
+  { id:"recruiter",  name:"Recruiter",    title:"Talent Pipeline",         icon:"👥", color:"#16a34a",
+    tagline:"Builds staffing plans using real pool data and rate cards",
+    ph:"Build a staffing plan for Broward County BARC 148-bed facility",
+    system:`You are RECRUITER for Shan Group LLC.\n${CTX}\nBuild staffing plans. POOL: 1,234 RNs|508 LPNs|698 CNAs|1,074 HHAs. DEPLOYMENT: 50 nurses 24hrs|40-60 in 72hrs|500-750 in 7-12 days. SCREENING: Level 2 FDLE|10-panel drug screen|TB test|License verification|BLS/CPR. TIMEKEEPING: MatrixCare EVV. Output: Staffing matrix with roles, hours, rates; Recruitment timeline; Deployment schedule.${HO}` },
+  { id:"pathfinder", name:"Pathfinder",   title:"Growth & Expansion",      icon:"🗺️", color:"#d97706",
+    tagline:"New markets and certifications based on real contract history",
+    ph:"What certifications unlock IHS tribal contracts for us?",
+    system:`You are PATHFINDER for Shan Group LLC.\n${CTX}\nStrategic growth. ADVANTAGES: FL Minority Business Cert to 10/26/2025. Oregon Price Agreement THRU 2028. Tribal capability statement ready for IHS. Correctional health Orange County. FDEM $22M 17 missions. PRIORITY: 8(a) certification; GSA Schedule 621I; IHS Tribal Health; VA Community Care; FEMA IDIQ. Output: Certification to pursue, Value unlocked, Application steps, Timeline.${HO}` },
+  { id:"shield",     name:"Shield",       title:"Compliance & Risk",       icon:"🛡️", color:"#dc2626",
+    tagline:"Compliance review using real requirements from bid documents",
+    ph:"Review Broward County BARC insurance requirements vs our coverage",
+    system:`You are SHIELD for Shan Group LLC.\n${CTX}\nCompliance review. CURRENT INSURANCE: GL $1M/$3M Philadelphia Indemnity PHPK2504272|Prof Liability $1M|NEA 305-221-2400. KEY GAP: Broward BARC requires $2M Prof Liability - WE HAVE $1M - UPGRADE NEEDED. Also needs GL $1M/$2M auto $500K HIPAA BAA. Oregon needs GL $2M/$4M Umbrella $8M. Flag all gaps, cone of silence violations.${HO}` },
+  { id:"liaison",    name:"Liaison",      title:"Relationships & Outreach", icon:"🤝", color:"#be185d",
+    tagline:"Pre-bid outreach using real contracting officer names",
+    ph:"Build a pre-solicitation outreach plan for FEMA Region 4",
+    system:`You are LIAISON for Shan Group LLC.\n${CTX}\nBuild pre-bid relationships. REAL CONTACTS: Hillsborough=Israel Segarra 813-272-5636 ACTIVE. Oregon=Eric Gebbie 503-358-7621 ACTIVE $60M. Sarasota=Melissa Neel BID SUBMITTED. Orange County=Melisa Vergara 407-836-5635 BID SUBMITTED. Broward=CONE OF SILENCE only 954-357-6400. FDEM=Nick Mayernick 850-273-2630 ACTIVE 17 missions.${HO}` },
+  { id:"vc",         name:"Vice-Chairman", title:"Board Orchestrator",      icon:"👑", color:"#d97706",
+    tagline:"Convenes the board and delivers Board Resolutions to Chairman Ali",
+    ph:"Convene the board — full status report on all active bids",
+    system:`You are the VICE-CHAIRMAN of the AI Agent Board for Shan Group LLC, reporting to Chairman Ali Mandsaurwala.\n${CTX}\nOversee all 9 agents. Synthesize intelligence, assign tasks, deliver formal Board Resolutions.\nACTIVE BIDS: Broward BARC GEN2124024B1 $2.25M PENDING. Sarasota 242595MN $1.72M SUBMITTED 4/2/2024. Orange County Y24-121 $1.06M/yr SUBMITTED. Pinellas 23-0509-RFP SUBMITTED. Citrus BH-2023-RFQ-01 ACTIVE. UM ACTIVE. FDEM $22M+ ACTIVE. Oregon $60M ACTIVE THRU 2028.\nFormat output as: BOARD RESOLUTION #[N] | DATE | AGENTS CONSULTED | KEY FINDINGS | RECOMMENDATION | CHAIRMAN ACTION REQUIRED${HO}` },
+];
+
+const AUDIT_CHECKS = [
+  {cat:"Registration",  item:"SAM.gov Active",                     st:"pass", note:"UEI: KFF4PM5PM468"},
+  {cat:"Registration",  item:"CAGE Code",                          st:"pass", note:"CAGE: 8WJN9"},
+  {cat:"Registration",  item:"E-Verify Enrolled",                  st:"pass", note:"ID 2118796 — 04/03/2023"},
+  {cat:"Licensing",     item:"FL Home Health Agency License",       st:"pass", note:"#299993833 / Cert #61906"},
+  {cat:"Licensing",     item:"Joint Commission Accreditation",      st:"pass", note:"Accreditation #508491"},
+  {cat:"Licensing",     item:"FL Minority Business Certification",  st:"warn", note:"Expires 10/26/2025 — renew early"},
+  {cat:"Insurance",     item:"General Liability $1M / $3M",         st:"pass", note:"Philadelphia Indemnity PHPK2504272"},
+  {cat:"Insurance",     item:"Workers Compensation",                st:"pass", note:"Bridgefield Casualty 019654222"},
+  {cat:"Insurance",     item:"Broward Prof Liability Gap",          st:"warn", note:"Broward requires $2M / we have $1M — call NEA 305-221-2400"},
+  {cat:"Insurance",     item:"Oregon Umbrella Coverage",            st:"warn", note:"OHA requires $8M umbrella — verify current policy"},
+  {cat:"Staff",         item:"Staff Pool Documented",               st:"pass", note:"1,234 RNs | 508 LPNs | 698 CNAs | 1,074 HHAs"},
+  {cat:"Staff",         item:"24-Hour Activation Proven",           st:"pass", note:"Hillsborough 56 shelters + FDEM 17 missions"},
+  {cat:"Staff",         item:"Level 2 Background Check Process",    st:"pass", note:"FDLE + 10-panel + TB test"},
+  {cat:"Past Perf.",    item:"6+ Verified Contracts",               st:"pass", note:"FDEM $22M | Oregon $60M | Hillsborough | UM | Mt Sinai | CPS"},
+  {cat:"Past Perf.",    item:"4 References on File",                st:"pass", note:"Grace Sullivan | Eric Gebbie | Nick Mayernick | Leanne LeFebvre"},
+  {cat:"Compliance",    item:"HIPAA / BAA Capability",              st:"pass", note:"BAA-capable — confirmed per Broward BARC"},
+  {cat:"Compliance",    item:"Jessica Lunsford Act",                st:"pass", note:"Level 2 background check process compliant"},
+  {cat:"Strategy",      item:"Active Bid Pipeline",                 st:"pass", note:"7 active / submitted bids tracked"},
+  {cat:"Strategy",      item:"Broward Cone of Silence",             st:"warn", note:"ACTIVE — only contact Purchasing Division 954-357-6400"},
+];
+
+const PIPELINE_STAGES = ["Identified","Researching","Proposal Draft","Submitted","Won","Lost"];
+const STAGE_COLORS = { Won:C.green, Lost:C.red, Submitted:C.blue, "Proposal Draft":"#7c3aed", Researching:C.orange, Identified:C.text3 };
+
+// ── STYLES HELPER ─────────────────────────────────────────────────────────────
+const g = (styles) => ({ fontFamily: F, ...styles });
+
+// ── GLOBAL CSS ────────────────────────────────────────────────────────────────
+const GlobalStyle = () => (
+  <style>{`
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; overflow: hidden; }
+    body { font-family: ${F}; background: ${C.bg}; color: ${C.text}; -webkit-font-smoothing: antialiased; }
+    ::-webkit-scrollbar { width: 0; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: ${C.line}; border-radius: 4px; }
+    textarea, input { font-family: ${F}; -webkit-appearance: none; }
+    button { font-family: ${F}; cursor: pointer; -webkit-appearance: none; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes tdot { 0%,80%,100%{transform:scale(0.5);opacity:0.25} 40%{transform:scale(1);opacity:1} }
+    .fade-up { animation: fadeUp 0.2s ease; }
+  `}</style>
+);
+
+
+// ── CALL CLAUDE API ───────────────────────────────────────────────────────────
+async function callClaude(systemPrompt, messages, apiKey) {
+  if (!apiKey || !apiKey.trim().startsWith("sk-")) {
+    throw new Error("NO_KEY");
+  }
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey.trim(),
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+    }),
+  });
+  let data;
+  try { data = await res.json(); } catch {
+    throw new Error("Could not parse API response (HTTP " + res.status + ")");
+  }
+  if (!res.ok) throw new Error(data?.error?.message || "API error " + res.status);
+  return data.content?.[0]?.text || "No response received.";
+}
+
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function Dashboard({ onOpenAgent, thread }) {
+  const score = Math.round(AUDIT_CHECKS.filter(c => c.st === "pass").length / AUDIT_CHECKS.length * 100);
+  return (
+    <div className="fade-up" style={g({ padding:"20px 20px 80px" })}>
+
+      {/* Hero */}
+      <div style={g({ background:C.ink, borderRadius:18, padding:"22px 20px 20px", marginBottom:14, position:"relative", overflow:"hidden" })}>
+        <div style={{ position:"absolute", bottom:-50, right:-30, width:200, height:200, background:"radial-gradient(circle,rgba(0,113,227,0.15) 0%,transparent 70%)", pointerEvents:"none" }}/>
+        <div style={g({ fontSize:11, fontWeight:500, color:"rgba(255,255,255,0.3)", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:5 })}>Shan Group, LLC</div>
+        <div style={g({ fontSize:21, fontWeight:700, color:"#fff", letterSpacing:"-0.025em", lineHeight:1.15, marginBottom:3 })}>Accessible Home Health Care</div>
+        <div style={g({ fontSize:12, color:"rgba(255,255,255,0.38)", marginBottom:18, letterSpacing:"-0.01em" })}>Ali Mandsaurwala · UEI KFF4PM5PM468 · North Miami Beach, FL</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:1, background:"rgba(255,255,255,0.08)", borderRadius:10, overflow:"hidden" }}>
+          {[["6","#34c759","Won"],["7","#ff9f0a","Active"],["$22M+","#30d158","FDEM"],[score+"%","#0a84ff","Readiness"]].map(([n,col,l]) => (
+            <div key={l} style={{ background:"rgba(255,255,255,0.04)", padding:"11px 10px", textAlign:"center" }}>
+              <div style={g({ fontSize:19, fontWeight:700, color:col, letterSpacing:"-0.03em", lineHeight:1, marginBottom:2 })}>{n}</div>
+              <div style={g({ fontSize:9, color:"rgba(255,255,255,0.3)", fontWeight:500, letterSpacing:"0.04em", textTransform:"uppercase" })}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Insurance Alert */}
+      <div style={g({ background:C.redBg, borderRadius:12, padding:"13px 15px", marginBottom:12, display:"flex", gap:11, alignItems:"flex-start" })}>
+        <span style={{ fontSize:15, flexShrink:0, lineHeight:1.4 }}>⚠️</span>
+        <div>
+          <div style={g({ fontSize:13, fontWeight:600, color:C.red, marginBottom:2 })}>Action Required — Insurance Gap</div>
+          <div style={g({ fontSize:12.5, color:C.text2, lineHeight:1.5 })}>Broward County BARC (GEN2124024B1) requires $2M Professional Liability. Current: $1M. Call NEA Insurance Group 305-221-2400.</div>
+        </div>
+      </div>
+
+      {/* Priority Bids */}
+      <div style={g({ background:C.orangeBg, borderRadius:12, padding:"13px 15px", marginBottom:20, display:"flex", gap:11, alignItems:"flex-start" })}>
+        <span style={{ fontSize:15, flexShrink:0, lineHeight:1.4 }}>🎯</span>
+        <div>
+          <div style={g({ fontSize:13, fontWeight:600, color:"#bf6a00", marginBottom:7 })}>Priority Bids</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+            {["Broward · GEN2124024B1","Sarasota · 242595MN","Orange Co. · Y24-121","Pinellas · 23-0509-RFP","Citrus · BH-2023-RFQ-01"].map(t => (
+              <span key={t} style={g({ fontSize:11.5, fontWeight:500, padding:"4px 10px", borderRadius:20, background:"#fff3e0", color:"#a05000" })}>{t}</span>
+            ))}
+            {["Univ. of Miami","FDEM Active"].map(t => (
+              <span key={t} style={g({ fontSize:11.5, fontWeight:500, padding:"4px 10px", borderRadius:20, background:C.blueBg, color:"#005abf" })}>{t}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Agent Grid */}
+      <div style={g({ fontSize:11.5, fontWeight:600, color:C.text2, letterSpacing:"0.03em", textTransform:"uppercase", marginBottom:12 })}>Your AI Board</div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:24 }}>
+        {AGENTS.map(a => (
+          <button key={a.id} onClick={() => onOpenAgent(a)} style={g({
+            background:C.surface, border:`1px solid ${C.line}`, borderRadius:12,
+            padding:"15px 14px 13px", textAlign:"left", boxShadow:S.sm,
+            position:"relative", overflow:"hidden", transition:"all 0.16s",
+          })}>
+            <div style={{ position:"absolute", top:0, left:0, right:0, height:2.5, background:a.color, borderRadius:"12px 12px 0 0" }}/>
+            <span style={{ fontSize:22, display:"block", marginBottom:8, lineHeight:1 }}>{a.icon}</span>
+            <div style={g({ fontSize:13, fontWeight:600, color:a.color, marginBottom:2, letterSpacing:"-0.01em" })}>{a.name}</div>
+            <div style={g({ fontSize:11, color:C.text3 })}>{a.title}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Rate Card */}
+      <div style={g({ fontSize:11.5, fontWeight:600, color:C.text2, letterSpacing:"0.03em", textTransform:"uppercase", marginBottom:12 })}>Rate Card Reference</div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:8 }}>
+        {[["RN Med-Surg","$110/hr"],["RN ICU","$115/hr"],["RN ED","$122.50/hr"],["LPN","$85/hr"],["CNA / MA","$55/hr"],["APRN / NP","$130/hr"],["Oregon RN Lead","$205/hr"],["Mt Sinai RN ICU","$140/hr"],["Sarasota 15-Day","$427,536"],["Oregon Contract","$60M/2028"],["FDEM Revenue","$22,005,180"],["RFQ 345743-Q1","$74,257.14"]].map(([l,v]) => (
+          <div key={l} style={g({ background:C.surface, border:`1px solid ${C.line}`, borderRadius:10, padding:"10px 12px", boxShadow:S.sm })}>
+            <div style={g({ fontSize:10.5, color:C.text3, fontWeight:500, marginBottom:3 })}>{l}</div>
+            <div style={g({ fontSize:14.5, fontWeight:600, color:C.blue, letterSpacing:"-0.02em" })}>{v}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── AGENT CHAT ────────────────────────────────────────────────────────────────
+function AgentChat({ agent, onBack, thread, setThread, apiKey }) {
+  const [msgs, setMsgs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`sg_msgs_${agent.id}`) || "[]"); } catch { return []; }
+  });
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const endRef = useRef(null);
+  const taRef  = useRef(null);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior:"smooth" }); }, [msgs, loading]);
+  useEffect(() => { try { localStorage.setItem(`sg_msgs_${agent.id}`, JSON.stringify(msgs)); } catch {} }, [msgs, agent.id]);
+
+  const send = useCallback(async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = { role:"user", content:input.trim() };
+    const newMsgs = [...msgs, userMsg];
+    setMsgs(newMsgs); setInput(""); setLoading(true);
+    if (taRef.current) taRef.current.style.height = "42px";
+    try {
+      if (!apiKey) throw new Error("No API key set. Go to Profile → Reset API Key to add one.");
+      const reply = await callClaude(agent.system, newMsgs, apiKey);
+      setMsgs(m => [...m, { role:"assistant", content:reply }]);
+    } catch(e) {
+      setMsgs(m => [...m, { role:"assistant", content:"Error: " + (e.message || String(e)) }]);
+    }
+    setLoading(false);
+  }, [input, loading, msgs, agent, apiKey]);
+
+  const handleKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
+  const autoResize = (e) => { e.target.style.height = "42px"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; };
+  const saveToThread = (content) => {
+    setThread(t => [...t, { agentId:agent.id, icon:agent.icon, name:agent.name, color:agent.color, body:content.slice(0,400)+(content.length>400?"...":""), ts:Date.now() }]);
+  };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", height:"100%", background:C.bg }}>
+      {/* Header */}
+      <div style={g({ background:"rgba(255,255,255,0.95)", borderBottom:`1px solid ${C.line}`, padding:"13px 18px", display:"flex", alignItems:"center", gap:13, flexShrink:0 })}>
+        <button onClick={onBack} style={g({ background:C.bg, border:`1px solid ${C.line}`, color:C.text2, borderRadius:20, padding:"5px 13px", fontSize:13, fontWeight:500, letterSpacing:"-0.01em", flexShrink:0 })}>← Back</button>
+        <span style={{ fontSize:24, lineHeight:1 }}>{agent.icon}</span>
+        <div>
+          <div style={g({ fontSize:16, fontWeight:600, color:agent.color, letterSpacing:"-0.022em" })}>{agent.name}</div>
+          <div style={g({ fontSize:11.5, color:C.text2 })}>{agent.tagline}</div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div style={g({ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"18px 18px 12px", display:"flex", flexDirection:"column", gap:12 })}>
+        {msgs.length === 0 && (
+          <div style={g({ background:C.surface, border:`1px solid ${C.line}`, borderTop:`3px solid ${agent.color}`, borderRadius:12, padding:"18px 20px", maxWidth:500, boxShadow:S.sm })}>
+            <div style={g({ fontSize:15, fontWeight:600, color:agent.color, letterSpacing:"-0.02em", marginBottom:5 })}>{agent.name} is ready</div>
+            <div style={g({ fontSize:13.5, color:C.text2, lineHeight:1.55 })}>{agent.tagline}</div>
+            <div style={g({ fontSize:12, color:C.text3, marginTop:10, fontStyle:"italic" })}>Try: "{agent.ph}"</div>
+          </div>
+        )}
+        {msgs.map((m, i) => (
+          <div key={i} style={{ display:"flex", justifyContent:m.role==="user"?"flex-end":"flex-start" }}>
+            <div style={g({
+              maxWidth:"78%", padding:"11px 15px", borderRadius:16, fontSize:14, lineHeight:1.6, letterSpacing:"-0.01em",
+              ...(m.role === "user"
+                ? { background:C.blue, color:"#fff", borderRadius:"16px 16px 4px 16px" }
+                : { background:C.surface, color:C.text, border:`1px solid ${C.line}`, borderRadius:"16px 16px 16px 4px", boxShadow:S.sm })
+            })}>
+              {m.role === "assistant" && (
+                <div style={g({ fontSize:10, fontWeight:600, letterSpacing:"0.06em", textTransform:"uppercase", color:agent.color, marginBottom:5, opacity:0.8 })}>{agent.name}</div>
+              )}
+              <div style={{ whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{m.content}</div>
+              {m.role === "assistant" && (
+                <button onClick={() => saveToThread(m.content)} style={g({ display:"block", marginTop:10, background:C.bg, border:`1px solid ${C.line}`, borderRadius:20, padding:"4px 12px", fontSize:11.5, fontWeight:500, color:C.text2, transition:"all 0.13s" })}>
+                  Save to Thread
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ display:"flex" }}>
+            <div style={g({ background:C.surface, border:`1px solid ${C.line}`, borderRadius:"16px 16px 16px 4px", padding:"12px 16px", display:"flex", gap:5, alignItems:"center", boxShadow:S.sm })}>
+              {[0,0.2,0.4].map((d,i) => <div key={i} style={{ width:6, height:6, borderRadius:"50%", background:agent.color, animation:`tdot 1.4s ease-in-out ${d}s infinite` }}/>)}
+            </div>
+          </div>
+        )}
+        <div ref={endRef}/>
+      </div>
+
+      {/* Input */}
+      <div style={g({ background:"rgba(255,255,255,0.96)", borderTop:`1px solid ${C.line}`, padding:"10px 16px 12px", display:"flex", gap:10, alignItems:"flex-end", flexShrink:0 })}>
+        <textarea
+          ref={taRef}
+          value={input}
+          onChange={e => { setInput(e.target.value); autoResize(e); }}
+          onKeyDown={handleKey}
+          placeholder={agent.ph}
+          rows={1}
+          style={g({ flex:1, background:C.bg, border:`1px solid ${C.line}`, borderRadius:22, padding:"10px 16px", fontSize:14, color:C.text, resize:"none", outline:"none", lineHeight:1.45, minHeight:42, maxHeight:120, letterSpacing:"-0.01em", transition:"border-color 0.15s" })}
+        />
+        <button
+          onClick={send}
+          disabled={loading || !input.trim()}
+          style={g({ background: loading||!input.trim() ? C.text3 : C.blue, color:"#fff", border:"none", borderRadius:"50%", width:38, height:38, fontSize:16, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.15s" })}
+        >↑</button>
+      </div>
+    </div>
+  );
+}
+
+// ── PIPELINE ──────────────────────────────────────────────────────────────────
+function Pipeline() {
+  const [bids, setBids] = useState(() => { try { return JSON.parse(localStorage.getItem("sg_pipe") || "[]"); } catch { return []; } });
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ name:"", agency:"", value:"", due:"", type:"", notes:"" });
+
+  const save = (b) => { setBids(b); try { localStorage.setItem("sg_pipe", JSON.stringify(b)); } catch {} };
+  const addBid = () => {
+    if (!form.name.trim()) return;
+    save([...bids, { id:Date.now()+"", stage:"Identified", ...form }]);
+    setForm({ name:"", agency:"", value:"", due:"", type:"", notes:"" }); setAdding(false);
+  };
+  const moveBid = (id, stage) => save(bids.map(b => b.id===id ? {...b,stage} : b));
+  const delBid  = (id) => { if(confirm("Remove this bid?")) save(bids.filter(b => b.id!==id)); };
+
+  return (
+    <div className="fade-up" style={g({ padding:"20px 20px 80px" })}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20, flexWrap:"wrap", gap:10 }}>
+        <div>
+          <div style={g({ fontSize:26, fontWeight:700, letterSpacing:"-0.03em" })}>Bid Pipeline</div>
+          <div style={g({ fontSize:14, color:C.text2, marginTop:3 })}>Track every opportunity from discovery to close</div>
+        </div>
+        <button onClick={() => setAdding(!adding)} style={g({ background:C.blue, color:"#fff", border:"none", borderRadius:10, padding:"9px 18px", fontSize:14, fontWeight:600, letterSpacing:"-0.015em" })}>+ Add Bid</button>
+      </div>
+
+      {adding && (
+        <div style={g({ background:C.surface, border:`1px solid ${C.line}`, borderRadius:14, padding:"18px 18px 14px", marginBottom:16, boxShadow:S.sm })}>
+          <div style={g({ fontSize:15, fontWeight:600, marginBottom:14, letterSpacing:"-0.02em" })}>New Opportunity</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+            {[["name","Name *"],["agency","Agency"],["value","Est. Value"],["due","Due Date"],["type","Type"],["notes","Notes"]].map(([k,l]) => (
+              <div key={k}>
+                <div style={g({ fontSize:10.5, fontWeight:600, color:C.text3, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 })}>{l}</div>
+                <input value={form[k]} onChange={e => setForm(f=>({...f,[k]:e.target.value}))}
+                  style={g({ width:"100%", background:C.bg, border:`1px solid ${C.line}`, borderRadius:8, padding:"9px 12px", fontSize:14, color:C.text, outline:"none" })}/>
+              </div>
+            ))}
+          </div>
+          <button onClick={addBid} style={g({ width:"100%", background:C.blue, color:"#fff", border:"none", borderRadius:8, padding:"10px", fontSize:14, fontWeight:600 })}>Add to Pipeline</button>
+        </div>
+      )}
+
+      <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(6,minmax(165px,1fr))", gap:10, minWidth:990 }}>
+          {PIPELINE_STAGES.map(stage => {
+            const sc = STAGE_COLORS[stage];
+            const cards = bids.filter(b => b.stage === stage);
+            return (
+              <div key={stage} style={g({ background:C.surface2, border:`1px solid ${C.line}`, borderRadius:12, padding:13, minHeight:180 })}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", paddingBottom:10, borderBottom:`1px solid ${C.line2}`, marginBottom:8 }}>
+                  <span style={g({ fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.04em", color:sc })}>{stage}</span>
+                  <span style={g({ fontSize:11, fontWeight:600, padding:"2px 7px", borderRadius:10, background:`${sc}18`, color:sc })}>{cards.length}</span>
+                </div>
+                {cards.map(b => (
+                  <div key={b.id} style={g({ background:C.surface, border:`1px solid ${C.line}`, borderRadius:8, padding:"10px 12px", marginBottom:8, boxShadow:S.sm })}>
+                    <div style={g({ fontSize:12.5, fontWeight:600, marginBottom:3, letterSpacing:"-0.01em" })}>{b.name}</div>
+                    {b.agency && <div style={g({ fontSize:11.5, color:C.text3 })}>{b.agency}</div>}
+                    {b.value  && <div style={g({ fontSize:12, fontWeight:600, color:C.blue, marginTop:2 })}>{b.value}</div>}
+                    {b.due    && <div style={g({ fontSize:11.5, color:C.orange, marginTop:2 })}>Due: {b.due}</div>}
+                    <div style={{ display:"flex", gap:3, marginTop:9, flexWrap:"wrap" }}>
+                      {PIPELINE_STAGES.filter(s=>s!==stage).map(s => (
+                        <button key={s} onClick={() => moveBid(b.id,s)} style={g({ background:C.bg, border:`1px solid ${C.line}`, borderRadius:5, padding:"2px 6px", fontSize:10.5, color:STAGE_COLORS[s], fontWeight:500 })}>{s}</button>
+                      ))}
+                      <button onClick={() => delBid(b.id)} style={g({ background:C.redBg, border:`1px solid rgba(255,59,48,0.15)`, borderRadius:5, padding:"2px 6px", fontSize:10.5, color:C.red, fontWeight:500 })}>Remove</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SOURCES SOUGHT ────────────────────────────────────────────────────────────
+function SourcesSought({ apiKey }) {
+  const [form, setForm] = useState({ agency:"", rfp:"", due:"", naics:"561320", setaside:"None", desc:"" });
+  const [output, setOutput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const generate = async () => {
+    setLoading(true); setOutput("");
+    const prompt = `Generate a professional Sources Sought Response.
+
+COMPANY: Shan Group LLC DBA Accessible Home Health Care of Aventura
+UEI: KFF4PM5PM468 | CAGE: 8WJN9 | EIN: 27-3818953 | SAM.gov Active
+FL License #299993833 | Joint Commission #508491 | Minority-Owned
+Owner: Ali Mandsaurwala | Phone: 305.627.3103 | Email: alim@ahhcfl.com
+Staff: 1,234 RNs | 508 LPNs | 698 CNAs | 1,074 HHAs
+Deployment: 50 nurses 24hrs | 40-60 in 72hrs | 500-750 in 7-12 days
+Past Performance: FDEM 17 missions $22,005,180 | Oregon OHA $60M | Hillsborough 56 shelters | UM | Mount Sinai
+References: Grace Sullivan 720-215-9199 | Eric Gebbie 503-358-7621 | Nick Mayernick 850-273-2630
+
+OPPORTUNITY:
+Agency: ${form.agency || "[Agency]"}
+Solicitation #: ${form.rfp || "[Number]"}
+Due Date: ${form.due || "[Date]"}
+NAICS: ${form.naics}
+Set-Aside: ${form.setaside}
+Description: ${form.desc || "Medical staffing services"}
+
+Write a complete, ready-to-submit Sources Sought Response: Company Info, Capability Narrative, 3 Past Performance examples with dollar values, Key Personnel, Technical Approach, Business Size, Points of Contact.`;
+    try {
+      const reply = await callClaude("You are a government contracting proposal writer.", [{ role:"user", content:prompt }], apiKey);
+      setOutput(reply);
+    } catch(e) { setOutput("Error: " + e.message); }
+    setLoading(false);
+  };
+
+  const targets = ["Broward County BARC","Sarasota County","Orange County","Pinellas County","University of Miami","Citrus County","FEMA Region 4","IHS Tribal Health","VA Community Care"];
+
+  return (
+    <div className="fade-up" style={g({ padding:"20px 20px 80px" })}>
+      <div style={g({ fontSize:26, fontWeight:700, letterSpacing:"-0.03em", marginBottom:4 })}>Sources Sought</div>
+      <div style={g({ fontSize:14, color:C.text2, marginBottom:20 })}>Generates compliant responses with Shan Group credentials pre-loaded</div>
+
+      <div style={g({ background:C.blueBg, borderRadius:12, padding:"14px 16px", marginBottom:20 })}>
+        <div style={g({ fontSize:11, fontWeight:600, color:C.blue, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10 })}>Quick Fill — Priority Targets</div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+          {targets.map(t => (
+            <button key={t} onClick={() => setForm(f=>({...f,agency:t}))} style={g({ background:C.surface, border:`1px solid rgba(0,113,227,0.2)`, borderRadius:20, padding:"6px 13px", fontSize:13, color:C.blue, fontWeight:500, transition:"all 0.13s" })}>{t}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+        {[["agency","Agency / Client"],["rfp","RFP / SS Number"],["due","Due Date"],["naics","NAICS Code"],["setaside","Set-Aside"]].map(([k,l]) => (
+          <div key={k} style={k==="setaside"?{gridColumn:"1/-1"}:{}}>
+            <div style={g({ fontSize:10.5, fontWeight:600, color:C.text3, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 })}>{l}</div>
+            <input value={form[k]} onChange={e => setForm(f=>({...f,[k]:e.target.value}))}
+              style={g({ width: k==="setaside"?"50%":"100%", background:C.bg, border:`1px solid ${C.line}`, borderRadius:8, padding:"10px 13px", fontSize:14, color:C.text, outline:"none" })}/>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginBottom:16 }}>
+        <div style={g({ fontSize:10.5, fontWeight:600, color:C.text3, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 })}>Opportunity Description</div>
+        <textarea value={form.desc} onChange={e => setForm(f=>({...f,desc:e.target.value}))} placeholder="Paste the opportunity description here..." rows={4}
+          style={g({ width:"100%", background:C.bg, border:`1px solid ${C.line}`, borderRadius:8, padding:"10px 13px", fontSize:14, color:C.text, resize:"vertical", outline:"none", minHeight:80, lineHeight:1.5 })}/>
+      </div>
+
+      <button onClick={generate} disabled={loading} style={g({ width:"100%", padding:"14px", fontSize:15, fontWeight:600, background:loading?C.text3:C.blue, color:"#fff", border:"none", borderRadius:12, letterSpacing:"-0.02em", marginBottom:16, transition:"all 0.15s" })}>
+        {loading ? "Generating..." : "Generate Sources Sought Response"}
+      </button>
+
+      {output && (
+        <div style={g({ background:C.surface, border:`1px solid ${C.line}`, borderRadius:12, padding:"18px 20px", boxShadow:S.sm })}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+            <span style={g({ fontSize:12, fontWeight:600, color:C.green, textTransform:"uppercase", letterSpacing:"0.06em" })}>✓ Response Ready</span>
+            <button onClick={() => navigator.clipboard.writeText(output)} style={g({ background:C.bg, border:`1px solid ${C.line}`, borderRadius:8, padding:"6px 14px", fontSize:13, fontWeight:500, color:C.text2 })}>Copy</button>
+          </div>
+          <div style={g({ fontSize:13.5, color:C.text2, lineHeight:1.75, whiteSpace:"pre-wrap", maxHeight:440, overflowY:"auto" })}>{output}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── THREAD ────────────────────────────────────────────────────────────────────
+function Thread({ thread, setThread }) {
+  return (
+    <div className="fade-up" style={g({ padding:"20px 20px 80px" })}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+        <div>
+          <div style={g({ fontSize:26, fontWeight:700, letterSpacing:"-0.03em" })}>Mission Thread</div>
+          <div style={g({ fontSize:14, color:C.text2, marginTop:3 })}>Saved intelligence from your agent sessions</div>
+        </div>
+        {thread.length > 0 && (
+          <button onClick={() => { if(confirm("Clear all items?")) setThread([]); }} style={g({ background:C.redBg, border:`1px solid rgba(255,59,48,0.2)`, borderRadius:8, padding:"7px 14px", fontSize:13, color:C.red, fontWeight:500 })}>Clear</button>
+        )}
+      </div>
+      {thread.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"60px 20px" }}>
+          <div style={{ fontSize:40, marginBottom:14 }}>🧵</div>
+          <div style={g({ fontSize:17, fontWeight:600, letterSpacing:"-0.02em", marginBottom:6 })}>Nothing here yet</div>
+          <div style={g({ fontSize:14, color:C.text2, maxWidth:280, margin:"0 auto", lineHeight:1.5 })}>Chat with any agent and tap "Save to Thread" to build your intelligence log.</div>
+        </div>
+      ) : (
+        thread.slice().reverse().map((item, i) => (
+          <div key={i} style={g({ background:C.surface, border:`1px solid ${C.line}`, borderLeft:`3px solid ${item.color}`, borderRadius:12, padding:"15px 17px", marginBottom:10, boxShadow:S.sm })}>
+            <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:8 }}>
+              <span style={{ fontSize:15 }}>{item.icon}</span>
+              <span style={g({ fontSize:12.5, fontWeight:600, color:item.color })}>{item.name}</span>
+              <span style={g({ fontSize:11, color:C.text3, marginLeft:"auto" })}>{new Date(item.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>
+            </div>
+            <div style={g({ fontSize:13, color:C.text2, lineHeight:1.65 })}>{item.body}</div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ── AUDIT ─────────────────────────────────────────────────────────────────────
+function Audit() {
+  const passed = AUDIT_CHECKS.filter(c => c.st==="pass").length;
+  const warned = AUDIT_CHECKS.filter(c => c.st==="warn").length;
+  const score  = Math.round(passed / AUDIT_CHECKS.length * 100);
+  const scoreColor = score>=80 ? C.green : score>=60 ? C.orange : C.red;
+  const cats = [...new Set(AUDIT_CHECKS.map(c => c.cat))];
+
+  return (
+    <div className="fade-up" style={g({ padding:"20px 20px 80px" })}>
+      <div style={g({ fontSize:26, fontWeight:700, letterSpacing:"-0.03em", marginBottom:4 })}>Readiness Audit</div>
+      <div style={g({ fontSize:14, color:C.text2, marginBottom:20 })}>Compliance and bid readiness — Shan Group, LLC</div>
+
+      <div style={g({ background:C.surface, border:`1px solid ${C.line}`, borderRadius:14, padding:"22px 24px", display:"flex", alignItems:"center", gap:20, marginBottom:22, boxShadow:S.sm, flexWrap:"wrap" })}>
+        <div style={g({ fontSize:58, fontWeight:700, letterSpacing:"-0.04em", lineHeight:1, color:scoreColor })}>{score}%</div>
+        <div>
+          <div style={g({ fontSize:16, fontWeight:600, letterSpacing:"-0.02em", marginBottom:3 })}>Bid Readiness Score</div>
+          <div style={g({ fontSize:13, color:C.text2, marginBottom:10 })}>{passed} passed · {warned} warnings</div>
+          <div style={{ height:5, background:C.bg, borderRadius:3, width:200, overflow:"hidden" }}>
+            <div style={{ height:"100%", borderRadius:3, background:scoreColor, width:`${score}%`, transition:"width 0.7s cubic-bezier(0.34,1.56,0.64,1)" }}/>
+          </div>
+        </div>
+      </div>
+
+      {cats.map(cat => (
+        <div key={cat} style={{ marginBottom:6 }}>
+          <div style={g({ fontSize:11, fontWeight:600, color:C.text3, textTransform:"uppercase", letterSpacing:"0.06em", padding:"14px 0 8px", borderBottom:`1px solid ${C.line}` })}>{cat}</div>
+          {AUDIT_CHECKS.filter(c => c.cat===cat).map((c, i) => (
+            <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"11px 0", borderBottom:`1px solid ${C.line2}` }}>
+              <div style={g({ fontSize:13, fontWeight:600, color:c.st==="pass"?C.green:c.st==="warn"?C.orange:C.red, flexShrink:0, width:16, textAlign:"center" })}>
+                {c.st==="pass"?"✓":c.st==="warn"?"!":"✗"}
+              </div>
+              <div>
+                <div style={g({ fontSize:13.5, fontWeight:500, letterSpacing:"-0.01em" })}>{c.item}</div>
+                <div style={g({ fontSize:12.5, color:C.text2, marginTop:1 })}>{c.note}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── PROFILE ───────────────────────────────────────────────────────────────────
+function Profile({ onResetKey }) {
+  const [saved, setSaved] = useState(false);
+  const fields = [
+    ["Legal Name","Shan Group, LLC"],["DBA","Accessible Home Health Care of Aventura"],
+    ["Owner","Ali Mandsaurwala"],["Structure","S Corporation / Minority-Owned"],
+    ["UEI Number","KFF4PM5PM468"],["CAGE Code","8WJN9"],
+    ["EIN","27-3818953"],["Phone","305.627.3103"],
+    ["Email","alim@ahhcfl.com"],["Address","15251 NE 18th Avenue, Suite 9, North Miami Beach, FL 33162"],
+  ];
+  return (
+    <div className="fade-up" style={g({ padding:"20px 20px 80px" })}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+        <div>
+          <div style={g({ fontSize:26, fontWeight:700, letterSpacing:"-0.03em" })}>Profile</div>
+          <div style={g({ fontSize:14, color:C.text2, marginTop:3 })}>Powers every agent's intelligence and proposals</div>
+        </div>
+        <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2500); }}
+          style={g({ background:saved?C.green:C.blue, color:"#fff", border:"none", borderRadius:10, padding:"9px 18px", fontSize:14, fontWeight:600, transition:"all 0.2s" })}>
+          {saved ? "Saved ✓" : "Save"}
+        </button>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:16 }}>
+        {fields.map(([l, v]) => (
+          <div key={l}>
+            <div style={g({ fontSize:10.5, fontWeight:600, color:C.text3, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 })}>{l}</div>
+            <input defaultValue={v} style={g({ width:"100%", background:C.bg, border:`1px solid ${C.line}`, borderRadius:8, padding:"9px 12px", fontSize:13.5, color:C.text, outline:"none" })}/>
+          </div>
+        ))}
+      </div>
+      {[["Certifications","SAM.gov Active; FL License #299993833; Joint Commission #508491; FL Minority Business Cert; E-Verify 2118796; HIPAA BAA-capable; Level 2 FDLE"],
+        ["Specialties","RN (ICU,ED,L&D,OR,Tele,Med-Surg); LPN/LVN; CNA/HHA; ARNP/NP; Physicians; RRT; PT/OT; Pharmacists; EMT/Paramedics; MA; BHT; LMHS; Correctional Health; Tribal Care; Emergency Disaster Response"],
+        ["Key Strengths","17 FDEM missions $22M+ verified; Oregon OHA $60M thru 2028; 50 nurses 24hrs; 500-750 in 7-12 days; Joint Commission + Minority-Owned; Level 2 FDLE; HIPAA BAA ready"]
+      ].map(([l,v]) => (
+        <div key={l} style={{ marginBottom:14 }}>
+          <div style={g({ fontSize:10.5, fontWeight:600, color:C.text3, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 })}>{l}</div>
+          <textarea defaultValue={v} rows={3} style={g({ width:"100%", background:C.bg, border:`1px solid ${C.line}`, borderRadius:8, padding:"10px 12px", fontSize:13.5, color:C.text, resize:"vertical", outline:"none", minHeight:72, lineHeight:1.5 })}/>
+        </div>
+      ))}
+
+      {onResetKey && (
+        <div style={g({ marginTop:8, paddingTop:20, borderTop:`1px solid ${C.line}`, marginBottom:40 })}>
+          <div style={g({ fontSize:13, fontWeight:600, color:C.text, marginBottom:4 })}>API Key</div>
+          <div style={g({ fontSize:12.5, color:C.text2, marginBottom:12 })}>Your Anthropic API key is saved on this device. Reset to enter a new key.</div>
+          <button onClick={onResetKey} style={g({ background:C.redBg, border:`1px solid rgba(255,59,48,0.2)`, borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:500, color:C.red })}>
+            Reset API Key
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── BOTTOM NAV ────────────────────────────────────────────────────────────────
+const BOTTOM_TABS = [
+  { id:"dashboard", label:"Board",    icon:"⌂" },
+  { id:"pipeline",  label:"Pipeline", icon:"▦" },
+  { id:"sources",   label:"Sources",  icon:"✦" },
+  { id:"thread",    label:"Thread",   icon:"≡" },
+  { id:"audit",     label:"Audit",    icon:"◎" },
+];
+
+function BottomNav({ view, onNav }) {
+  return (
+    <div style={g({ position:"fixed", bottom:0, left:0, right:0, height:68, background:"rgba(255,255,255,0.94)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", borderTop:`1px solid ${C.line}`, display:"flex", justifyContent:"space-around", alignItems:"flex-start", paddingTop:8, zIndex:200 })}>
+      {BOTTOM_TABS.map(t => (
+        <button key={t.id} onClick={() => onNav(t.id)} style={g({ background:"none", border:"none", display:"flex", flexDirection:"column", alignItems:"center", gap:2, padding:"0 8px", minWidth:52 })}>
+          <div style={{ width:30, height:30, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, background:view===t.id?C.blueBg:"transparent", transition:"all 0.15s" }}>
+            {t.icon}
+          </div>
+          <span style={g({ fontSize:10, fontWeight:view===t.id?600:500, color:view===t.id?C.blue:C.text3, letterSpacing:"0.01em", transition:"color 0.15s" })}>{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────────────────────
+function Sidebar({ view, activeAgent, onNav, onOpenAgent }) {
+  const [hovered, setHovered] = useState(false);
+  const w = hovered ? 220 : 62;
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={g({ width:w, flexShrink:0, background:"rgba(29,29,31,0.97)", backdropFilter:"blur(20px)", display:"flex", flexDirection:"column", padding:"16px 0 20px", overflow:"hidden", transition:"width 0.28s cubic-bezier(0.25,0.46,0.45,0.94)", zIndex:100, position:"relative" })}
+    >
+      {/* Logo */}
+      <div style={{ padding:"0 13px 16px", borderBottom:"1px solid rgba(255,255,255,0.06)", flexShrink:0, marginBottom:8 }}>
+        <div style={g({ width:34, height:34, background:C.blue, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:700, color:"#fff" })}>S</div>
+      </div>
+
+      <div style={{ flex:1, overflowY:"auto", padding:"0 10px" }}>
+        {/* Nav */}
+        <div style={g({ fontSize:9, fontWeight:600, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.22)", padding:"10px 10px 4px", opacity:hovered?1:0, transition:"opacity 0.2s" })}>Menu</div>
+        {[{id:"dashboard",icon:"⌂",label:"Dashboard"},{id:"pipeline",icon:"▦",label:"Bid Pipeline"},{id:"sources",icon:"✦",label:"Sources Sought"},{id:"thread",icon:"≡",label:"Mission Thread"},{id:"audit",icon:"◎",label:"Readiness Audit"},{id:"profile",icon:"⊙",label:"Profile"}].map(t => (
+          <button key={t.id} onClick={() => onNav(t.id)} style={g({ width:"100%", background:view===t.id&&!activeAgent?"rgba(0,113,227,0.2)":"none", border:"none", display:"flex", alignItems:"center", gap:11, padding:"8px 10px", borderRadius:8, color:view===t.id&&!activeAgent?"#fff":"rgba(255,255,255,0.5)", fontSize:13, fontWeight:view===t.id&&!activeAgent?500:400, cursor:"pointer", marginBottom:1, textAlign:"left", whiteSpace:"nowrap", overflow:"hidden", transition:"all 0.14s" })}>
+            <span style={{ fontSize:15, width:22, textAlign:"center", flexShrink:0, opacity:0.8 }}>{t.icon}</span>
+            <span style={{ opacity:hovered?1:0, transform:hovered?"translateX(0)":"translateX(-6px)", transition:"all 0.2s" }}>{t.label}</span>
+          </button>
+        ))}
+
+        <div style={{ height:1, background:"rgba(255,255,255,0.06)", margin:"8px 0" }}/>
+
+        {/* Agents */}
+        <div style={g({ fontSize:9, fontWeight:600, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.22)", padding:"10px 10px 4px", opacity:hovered?1:0, transition:"opacity 0.2s" })}>Agents</div>
+        {AGENTS.map(a => (
+          <button key={a.id} onClick={() => onOpenAgent(a)} style={g({ width:"100%", background:activeAgent?.id===a.id?"rgba(0,113,227,0.18)":"none", border:"none", display:"flex", alignItems:"center", gap:10, padding:"7px 10px", borderRadius:8, color:activeAgent?.id===a.id?"#fff":"rgba(255,255,255,0.45)", fontSize:12, cursor:"pointer", marginBottom:1, textAlign:"left", whiteSpace:"nowrap", overflow:"hidden", transition:"all 0.14s" })}>
+            <span style={{ fontSize:14, width:22, textAlign:"center", flexShrink:0 }}>{a.icon}</span>
+            <span style={{ opacity:hovered?1:0, transform:hovered?"translateX(0)":"translateX(-6px)", transition:"all 0.2s" }}>{a.name}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding:"10px 14px 0", borderTop:"1px solid rgba(255,255,255,0.06)", marginTop:8 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+          <div style={{ width:6, height:6, borderRadius:"50%", background:C.green, flexShrink:0, animation:"pulse 2.5s ease-in-out infinite" }}/>
+          <span style={g({ fontSize:9, fontFamily:"'SF Mono',monospace", color:"rgba(255,255,255,0.18)", opacity:hovered?1:0, transition:"opacity 0.2s", whiteSpace:"nowrap" })}>UEI KFF4PM5PM468 · CAGE 8WJN9</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ── API KEY SETUP SCREEN ──────────────────────────────────────────────────────
+function ApiKeySetup({ onSave }) {
+  const [key, setKey] = useState("");
+  const [error, setError] = useState("");
+  const handleSave = () => {
+    const k = key.trim();
+    if (!k.startsWith("sk-")) {
+      setError("API key must start with sk- — check and try again.");
+      return;
+    }
+    try { localStorage.setItem("sg_apikey", k); } catch {}
+    onSave(k);
+  };
+
+  return (
+    <div style={g({ height:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", padding:24 })}>
+      <div style={g({ background:C.surface, border:`1px solid ${C.line}`, borderRadius:20, padding:"32px 28px", maxWidth:420, width:"100%", boxShadow:"0 8px 40px rgba(0,0,0,0.1)" })}>
+
+        {/* Logo */}
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:28 }}>
+          <div style={g({ width:42, height:42, background:C.blue, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, fontWeight:700, color:"#fff" })}>S</div>
+          <div>
+            <div style={g({ fontSize:14, fontWeight:600, color:C.text, letterSpacing:"-0.01em" })}>Shan Group, LLC</div>
+            <div style={g({ fontSize:12, color:C.text2 })}>AI Agent Command Board</div>
+          </div>
+        </div>
+
+        <div style={g({ fontSize:22, fontWeight:700, letterSpacing:"-0.03em", marginBottom:6 })}>Connect Your Agents</div>
+        <div style={g({ fontSize:14, color:C.text2, lineHeight:1.55, marginBottom:24 })}>
+          Enter your Anthropic API key to activate all 10 agents. Your key is saved only on this device.
+        </div>
+
+        {/* How to get key */}
+        <div style={g({ background:C.blueBg, borderRadius:10, padding:"12px 14px", marginBottom:20 })}>
+          <div style={g({ fontSize:12, fontWeight:600, color:C.blue, marginBottom:5 })}>How to get your API key</div>
+          <div style={g({ fontSize:12, color:"#005abf", lineHeight:1.6 })}>
+            1. Go to <strong>console.anthropic.com</strong><br/>
+            2. Sign in or create an account<br/>
+            3. Click <strong>API Keys</strong> → <strong>Create Key</strong><br/>
+            4. Copy and paste it below
+          </div>
+        </div>
+
+        <div style={g({ fontSize:11, fontWeight:600, color:C.text3, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:5 })}>API Key</div>
+        <input
+          type="password"
+          value={key}
+          onChange={e => { setKey(e.target.value); setError(""); }}
+          onKeyDown={e => e.key === "Enter" && handleSave()}
+          placeholder="sk-ant-..."
+          style={g({ width:"100%", background:C.bg, border:`1px solid ${error ? C.red : C.line}`, borderRadius:10, padding:"11px 14px", fontSize:14, color:C.text, outline:"none", marginBottom:6, letterSpacing:"0.02em" })}
+        />
+        {error && <div style={g({ fontSize:12, color:C.red, marginBottom:10 })}>{error}</div>}
+
+        <button
+          onClick={handleSave}
+          disabled={!key.trim()}
+          style={g({ width:"100%", background: !key.trim() ? C.text3 : C.blue, color:"#fff", border:"none", borderRadius:10, padding:"13px", fontSize:15, fontWeight:600, marginTop:8, transition:"all 0.15s", letterSpacing:"-0.015em" })}
+        >
+          "Activate Agents →"
+        </button>
+
+        <div style={g({ fontSize:11.5, color:C.text3, textAlign:"center", marginTop:14, lineHeight:1.5 })}>
+          Your key never leaves your device. Typical usage costs a few cents per conversation.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── APP ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [apiKey,      setApiKey]      = useState(() => { try { return localStorage.getItem("sg_apikey") || ""; } catch { return ""; } });
+  const [view,        setView]        = useState("dashboard");
+  const [activeAgent, setActiveAgent] = useState(null);
+  const [thread,      setThread]      = useState(() => { try { return JSON.parse(localStorage.getItem("sg_thread") || "[]"); } catch { return []; } });
+  const isMobile = typeof window !== "undefined" && window.innerWidth <= 640;
+
+  useEffect(() => { try { localStorage.setItem("sg_thread", JSON.stringify(thread)); } catch {} }, [thread]);
+
+  // No API key — show setup screen
+  if (!apiKey || !apiKey.startsWith("sk-")) {
+    return (
+      <>
+        <GlobalStyle/>
+        <ApiKeySetup onSave={k => setApiKey(k)}/>
+      </>
+    );
+  }
+
+  const openAgent = (agent) => { setActiveAgent(agent); };
+  const closeAgent = () => { setActiveAgent(null); };
+  const navigate = (id) => { setActiveAgent(null); setView(id); };
+
+  const VIEW_TITLES = { dashboard:"Dashboard", pipeline:"Bid Pipeline", sources:"Sources Sought", thread:"Mission Thread", audit:"Readiness Audit", profile:"Profile" };
+
+  const renderView = () => {
+    if (activeAgent) return <AgentChat agent={activeAgent} onBack={closeAgent} thread={thread} setThread={setThread} apiKey={apiKey}/>;
+    switch(view) {
+      case "pipeline": return <Pipeline/>;
+      case "sources":  return <SourcesSought apiKey={apiKey}/>;
+      case "thread":   return <Thread thread={thread} setThread={setThread}/>;
+      case "audit":    return <Audit/>;
+      case "profile":  return <Profile onResetKey={() => { try { localStorage.removeItem("sg_apikey"); } catch {} setApiKey(""); }}/>;
+      default:         return <Dashboard onOpenAgent={openAgent} thread={thread}/>;
+    }
+  };
+
+  return (
+    <>
+      <GlobalStyle/>
+      <div style={{ display:"flex", height:"100vh", height:"100dvh", overflow:"hidden" }}>
+
+        {/* Desktop Sidebar */}
+        <div style={{ display: isMobile ? "none" : "flex" }}>
+          <Sidebar view={view} activeAgent={activeAgent} onNav={navigate} onOpenAgent={openAgent}/>
+        </div>
+
+        {/* Main */}
+        <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minWidth:0 }}>
+
+          {/* Topbar */}
+          {!activeAgent && (
+            <div style={g({ height:52, background:"rgba(255,255,255,0.88)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", borderBottom:`1px solid ${C.line}`, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px", flexShrink:0, zIndex:50 })}>
+              <div style={g({ fontSize:17, fontWeight:600, letterSpacing:"-0.022em" })}>{VIEW_TITLES[view]}</div>
+              <div style={{ display:"flex", gap:6 }}>
+                <span style={g({ fontSize:11.5, fontWeight:500, fontFamily:"'SF Mono',monospace", padding:"4px 10px", borderRadius:20, background:C.greenBg, color:"#1a7f37" })}>● SAM.gov Active</span>
+                <span style={g({ fontSize:11.5, fontWeight:500, fontFamily:"'SF Mono',monospace", padding:"4px 10px", borderRadius:20, background:C.bg, border:`1px solid ${C.line}`, color:C.text2 })}>CAGE 8WJN9</span>
+              </div>
+            </div>
+          )}
+
+          {/* Content */}
+          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
+            {renderView()}
+          </div>
+        </div>
+
+        {/* Mobile Bottom Nav */}
+        {!activeAgent && (
+          <div style={{ display: isMobile ? "block" : "none" }}>
+            <BottomNav view={view} onNav={navigate}/>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
