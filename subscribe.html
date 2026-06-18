@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subscribe — Shan Group AI Board Daily Brief</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07080d;
+  --surface: #0e1018;
+  --card: #13161f;
+  --card2: #1a1e2e;
+  --border: rgba(255,255,255,0.07);
+  --text: #e2e6f0;
+  --text2: #6b7494;
+  --text3: #2e3454;
+  --gold: #f5c842;
+  --blue: #4f8ef7;
+  --green: #3ecf8e;
+  --red: #f55f5f;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Space Grotesk', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;font-family:var(--sans);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+body{display:flex;align-items:center;justify-content:center;padding:24px;min-height:100vh}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:480px;width:100%;overflow:hidden;animation:up .4s ease}
+@keyframes up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* HEADER */
+.card-header{background:linear-gradient(135deg,#1a1d2e,#0e1018);padding:32px;text-align:center;border-bottom:1px solid var(--border)}
+.header-icon{font-size:42px;margin-bottom:12px}
+.header-eyebrow{font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;font-family:var(--mono);margin-bottom:8px}
+.header-title{font-size:24px;font-weight:700;letter-spacing:-.03em;margin-bottom:6px}
+.header-sub{font-size:13px;color:var(--text2);line-height:1.6}
+
+/* PREVIEW BADGES */
+.preview-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:20px 24px;border-bottom:1px solid var(--border)}
+.preview-badge{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:12px;color:var(--text2);font-family:var(--mono)}
+.preview-dot{width:6px;height:6px;border-radius:50%}
+
+/* STEPS */
+.steps{padding:20px 24px;border-bottom:1px solid var(--border)}
+.steps-title{font-size:10px;font-weight:700;color:var(--text2);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
+.step{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start}
+.step-num{width:24px;height:24px;border-radius:50%;background:rgba(245,200,66,0.12);border:1px solid rgba(245,200,66,0.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--gold);font-family:var(--mono);flex-shrink:0}
+.step-text{font-size:13px;color:var(--text2);line-height:1.5;padding-top:3px}
+.step-text strong{color:var(--text)}
+.step-code{display:inline-block;background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:1px 7px;font-family:var(--mono);font-size:12px;color:var(--gold)}
+
+/* FORM */
+.form{padding:24px}
+.form-title{font-size:10px;font-weight:700;color:var(--text2);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px}
+.field{margin-bottom:12px}
+.field-label{font-size:11px;font-weight:600;color:var(--text2);font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;display:block}
+.field-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 14px;font-family:var(--sans);font-size:14px;color:var(--text);outline:none;transition:border-color .15s}
+.field-input:focus{border-color:rgba(245,200,66,0.4)}
+.field-input::placeholder{color:var(--text3)}
+.field-hint{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:5px}
+.submit-btn{width:100%;background:var(--gold);color:#07080d;border:none;border-radius:10px;padding:14px;font-family:var(--sans);font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.submit-btn:hover{background:#f0ba30;transform:translateY(-1px)}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.msg{margin-top:14px;padding:12px 16px;border-radius:10px;font-size:13px;font-family:var(--mono);text-align:center;display:none}
+.msg.success{background:rgba(62,207,142,0.1);border:1px solid rgba(62,207,142,0.2);color:var(--green);display:block}
+.msg.error{background:rgba(245,95,95,0.1);border:1px solid rgba(245,95,95,0.2);color:var(--red);display:block}
+.msg.loading{background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.2);color:var(--gold);display:block}
+
+/* SUCCESS STATE */
+.success-state{display:none;padding:32px;text-align:center}
+.success-icon{font-size:48px;margin-bottom:16px}
+.success-title{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:8px;color:var(--green)}
+.success-sub{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:20px}
+.success-what{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:left;margin-bottom:16px}
+.success-what-title{font-size:10px;font-weight:700;color:var(--text2);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+.success-item{display:flex;gap:8px;margin-bottom:8px;font-size:13px;color:var(--text2)}
+.board-link{display:block;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.2);border-radius:10px;padding:12px 16px;font-family:var(--mono);font-size:12px;color:var(--gold);text-decoration:none;text-align:center}
+.board-link:hover{background:rgba(245,200,66,0.15)}
+
+/* FOOTER */
+.card-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.footer-logo{display:flex;align-items:center;gap:8px}
+.footer-s{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--gold),#d4a800);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#07080d}
+.footer-name{font-size:11px;font-weight:600;color:var(--text2)}
+.footer-right{font-size:10px;color:var(--text3);font-family:var(--mono)}
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- HEADER -->
+  <div class="card-header">
+    <div class="header-icon">👑</div>
+    <div class="header-eyebrow">Daily Executive Brief</div>
+    <div class="header-title">Subscribe to the Board</div>
+    <div class="header-sub">Get Shan Group's AI-generated daily brief delivered to your Telegram every morning — new contract opportunities, bid pipeline status, and compliance alerts.</div>
+  </div>
+
+  <!-- WHAT YOU GET -->
+  <div class="preview-row">
+    <div class="preview-badge"><div class="preview-dot" style="background:#4f8ef7"></div>New Opportunities</div>
+    <div class="preview-badge"><div class="preview-dot" style="background:#f5a442"></div>Bid Pipeline</div>
+    <div class="preview-badge"><div class="preview-dot" style="background:#f55f5f"></div>Compliance Flags</div>
+    <div class="preview-badge"><div class="preview-dot" style="background:#f5c842"></div>Action Items</div>
+  </div>
+
+  <!-- STEPS -->
+  <div class="steps">
+    <div class="steps-title">Before you subscribe — 2 quick steps</div>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">Open Telegram → search <span class="step-code">@RJ_2_0_bot</span> → tap <strong>Start</strong>. This allows the bot to message you.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">Open Telegram → search <span class="step-code">@userinfobot</span> → tap <strong>Start</strong>. It replies with your numeric Telegram ID — copy that number and paste it below.</div>
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <div class="form" id="form-section">
+    <div class="form-title">Your Details</div>
+
+    <div class="field">
+      <label class="field-label" for="f-name">Full Name</label>
+      <input class="field-input" id="f-name" placeholder="Ali Mandsaurwala" />
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="f-tid">Telegram ID</label>
+      <input class="field-input" id="f-tid" placeholder="123456789" type="tel" />
+      <div class="field-hint">Numbers only — get this from @userinfobot</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="f-email">Email Address <span style="color:var(--text3)">(optional)</span></label>
+      <input class="field-input" id="f-email" placeholder="ali@company.com" type="email" />
+      <div class="field-hint">To also receive the full HTML Executive Brief by email</div>
+    </div>
+
+    <button class="submit-btn" id="sub-btn" onclick="subscribe()">
+      <span>Subscribe to Daily Brief</span> →
+    </button>
+
+    <div class="msg" id="sub-msg"></div>
+  </div>
+
+  <!-- SUCCESS STATE (hidden until subscribed) -->
+  <div class="success-state" id="success-section">
+    <div class="success-icon">✅</div>
+    <div class="success-title">You're subscribed!</div>
+    <div class="success-sub">You'll receive the Shan Group Executive Brief every morning after the board session — usually around 7:45 AM ET.</div>
+
+    <div class="success-what">
+      <div class="success-what-title">What you'll receive</div>
+      <div class="success-item">🔍 New contract opportunities with match scores</div>
+      <div class="success-item">⚔️ Bid pipeline Go/No-Go status on all active bids</div>
+      <div class="success-item">🧠 Competitive intelligence on priority targets</div>
+      <div class="success-item">🛡️ Compliance flags and insurance alerts</div>
+      <div class="success-item">👑 Chairman action items — what needs a decision today</div>
+    </div>
+
+    <a class="board-link" href="https://rickypatel1982-eng.github.io/ahhc-agent-board/boardroom.html" target="_blank">
+      → View the Live Board Room
+    </a>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="card-footer">
+    <div class="footer-logo">
+      <div class="footer-s">S</div>
+      <div class="footer-name">Shan Group, LLC</div>
+    </div>
+    <div class="footer-right">UEI: KFF4PM5PM468 · CAGE: 8WJN9</div>
+  </div>
+
+</div>
+
+<script>
+const BOT_TOKEN = '8780939578:AAF6gVuR9eT5xUx8qmBME8pSGnaIatCueyw';
+const STORAGE_KEY = 'sg_board_subscribers';
+const ADMIN_ID = '8547673026';
+
+function getSubscribers() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function saveSubscriber(name, id, email) {
+  const subs = getSubscribers();
+  if (subs.find(s => s.id === id)) return false;
+  subs.push({ name, id, email: email || '', addedAt: new Date().toISOString() });
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(subs)); } catch(e) {}
+  return true;
+}
+
+function showMsg(text, type) {
+  const el = document.getElementById('sub-msg');
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+
+async function subscribe() {
+  const name = document.getElementById('f-name').value.trim();
+  const tid = document.getElementById('f-tid').value.trim().replace(/\D/g, '');
+  const email = document.getElementById('f-email').value.trim();
+  const btn = document.getElementById('sub-btn');
+
+  if (!name) { showMsg('Please enter your full name', 'error'); return; }
+  if (!tid || tid.length < 5) { showMsg('Please enter a valid Telegram ID from @userinfobot', 'error'); return; }
+  if (tid === ADMIN_ID) { showMsg('That ID is already registered as admin', 'error'); return; }
+
+  btn.disabled = true;
+  showMsg('Verifying your Telegram and sending confirmation...', 'loading');
+
+  try {
+    const res = await fetch('https://api.telegram.org/bot' + BOT_TOKEN + '/sendMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: tid,
+        text: `✅ Welcome to Shan Group AI Board Daily Brief!\n\nHi ${name},\n\nYou are now subscribed to receive the Executive Brief every morning after our AI board session.\n\n📊 You'll receive:\n• New contract opportunities\n• Bid pipeline status\n• Compliance alerts\n• Chairman action items\n\n👑 Shan Group, LLC\nUEI: KFF4PM5PM468 | CAGE: 8WJN9\n15251 NE 18th Avenue, Suite 9\nNorth Miami Beach, FL 33162`,
+      }),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      saveSubscriber(name, tid, email);
+      document.getElementById('form-section').style.display = 'none';
+      document.getElementById('success-section').style.display = 'block';
+    } else {
+      btn.disabled = false;
+      if (data.error_code === 400) {
+        showMsg('Could not reach your Telegram. Make sure you messaged @RJ_2_0_bot first and sent /start.', 'error');
+      } else {
+        showMsg('Error: ' + (data.description || 'Could not send message. Try again.'), 'error');
+      }
+    }
+  } catch(e) {
+    btn.disabled = false;
+    showMsg('Network error. Check your connection and try again.', 'error');
+  }
+}
+
+// Allow Enter key to submit
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') subscribe();
+});
+</script>
+
+</body>
+</html>
