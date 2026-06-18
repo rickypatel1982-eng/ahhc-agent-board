@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shan Group — AI Board Room</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0b0f;
+  --surface: #12141a;
+  --card: #1a1d26;
+  --card2: #21263a;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.03);
+  --text: #e8eaf0;
+  --text2: #7880a0;
+  --text3: #3a4060;
+  --gold: #f5c842;
+  --gold-dim: rgba(245,200,66,0.12);
+  --blue: #4f8ef7;
+  --blue-dim: rgba(79,142,247,0.12);
+  --green: #3ecf8e;
+  --green-dim: rgba(62,207,142,0.1);
+  --red: #f55f5f;
+  --red-dim: rgba(245,95,95,0.1);
+  --orange: #f5a442;
+  --purple: #a78bfa;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Space Grotesk', -apple-system, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ── STARFIELD ── */
+.starfield {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse at 20% 50%, rgba(79,142,247,0.03) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 20%, rgba(167,139,250,0.03) 0%, transparent 60%);
+}
+
+/* ── HEADER ── */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,11,15,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.logo {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--gold), #e8a800);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; color: #0a0b0f;
+}
+.header-title { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+.header-sub { font-size: 11px; color: var(--text2); font-family: var(--mono); }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.session-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--green-dim);
+  border: 1px solid rgba(62,207,142,0.2);
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 11px; font-weight: 600; color: var(--green);
+  font-family: var(--mono);
+}
+.pulse-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  animation: pulse-anim 2s ease-in-out infinite;
+}
+@keyframes pulse-anim { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(0.8)} }
+
+/* ── MAIN LAYOUT ── */
+.main { position: relative; z-index: 1; }
+
+/* ── BOARD ROOM HERO ── */
+.boardroom {
+  padding: 40px 32px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.boardroom-title {
+  font-size: 11px; font-weight: 600; color: var(--gold);
+  font-family: var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.boardroom-heading {
+  font-size: 32px; font-weight: 700; letter-spacing: -0.04em;
+  line-height: 1.1; margin-bottom: 6px;
+}
+.boardroom-heading em { color: var(--gold); font-style: normal; }
+.boardroom-sub { font-size: 14px; color: var(--text2); margin-bottom: 32px; }
+
+/* ── BOARD SESSION CONTROLS ── */
+.controls {
+  display: flex; gap: 10px; margin-bottom: 36px; flex-wrap: wrap;
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: 10px;
+  font-family: var(--sans); font-size: 13px; font-weight: 600;
+  cursor: pointer; border: none; transition: all 0.15s;
+  letter-spacing: -0.01em;
+}
+.btn-primary {
+  background: var(--gold); color: #0a0b0f;
+}
+.btn-primary:hover { background: #f0ba30; transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-secondary {
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { background: var(--card2); border-color: rgba(255,255,255,0.1); }
+.btn-danger {
+  background: var(--red-dim); color: var(--red);
+  border: 1px solid rgba(245,95,95,0.2);
+}
+
+/* ── TABLE (the board room table) ── */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+.table-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.table-title { font-size: 13px; font-weight: 600; color: var(--text2); font-family: var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.table-status { font-size: 12px; color: var(--text3); font-family: var(--mono); }
+
+/* ── AGENT GRID ── */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+}
+@media (max-width: 900px) {
+  .agent-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+  .agent-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.agent-cell {
+  border-right: 1px solid var(--border2);
+  border-bottom: 1px solid var(--border2);
+  padding: 20px 16px;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
+  position: relative;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+.agent-cell:hover { background: rgba(255,255,255,0.02); }
+.agent-cell.active { background: rgba(245,200,66,0.04); }
+.agent-cell.thinking { background: rgba(79,142,247,0.04); }
+.agent-cell.speaking { background: rgba(62,207,142,0.04); }
+.agent-cell.alerting { background: rgba(245,95,95,0.04); }
+
+/* ── MINION CHARACTER ── */
+.minion-wrap {
+  width: 64px; height: 64px;
+  position: relative; margin-bottom: 10px;
+}
+.minion {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  position: relative;
+  transition: transform 0.2s;
+  border: 2px solid transparent;
+}
+.agent-cell.active .minion {
+  animation: bob 0.6s ease-in-out infinite;
+  border-color: var(--gold);
+  box-shadow: 0 0 16px rgba(245,200,66,0.3);
+}
+.agent-cell.thinking .minion {
+  animation: think 1.2s ease-in-out infinite;
+  border-color: var(--blue);
+  box-shadow: 0 0 16px rgba(79,142,247,0.3);
+}
+.agent-cell.speaking .minion {
+  animation: speak 0.4s ease-in-out infinite;
+  border-color: var(--green);
+  box-shadow: 0 0 16px rgba(62,207,142,0.3);
+}
+.agent-cell.alerting .minion {
+  animation: alert-shake 0.5s ease-in-out infinite;
+  border-color: var(--red);
+  box-shadow: 0 0 16px rgba(245,95,95,0.3);
+}
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+@keyframes think { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+@keyframes speak { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.08)} }
+@keyframes alert-shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
+
+/* ── SPEECH BUBBLE ── */
+.speech-bubble {
+  position: absolute; top: -28px; left: 50%; transform: translateX(-50%);
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 3px 8px;
+  font-size: 10px; font-family: var(--mono); color: var(--text2);
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s;
+  z-index: 10;
+}
+.speech-bubble::after {
+  content: '';
+  position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--border);
+}
+.agent-cell.active .speech-bubble,
+.agent-cell.thinking .speech-bubble,
+.agent-cell.speaking .speech-bubble,
+.agent-cell.alerting .speech-bubble { opacity: 1; }
+
+.agent-name { font-size: 12px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 2px; }
+.agent-role { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-bottom: 8px; }
+.agent-status-badge {
+  font-size: 9px; font-weight: 600; font-family: var(--mono);
+  padding: 2px 7px; border-radius: 10px;
+  background: var(--card2); color: var(--text3);
+  border: 1px solid var(--border2);
+  transition: all 0.2s;
+}
+.agent-cell.active .agent-status-badge { background: var(--gold-dim); color: var(--gold); border-color: rgba(245,200,66,0.2); }
+.agent-cell.thinking .agent-status-badge { background: var(--blue-dim); color: var(--blue); border-color: rgba(79,142,247,0.2); }
+.agent-cell.speaking .agent-status-badge { background: var(--green-dim); color: var(--green); border-color: rgba(62,207,142,0.2); }
+.agent-cell.alerting .agent-status-badge { background: var(--red-dim); color: var(--red); border-color: rgba(245,95,95,0.2); }
+
+/* ── BOARD SESSION FEED ── */
+.session-feed {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+.feed-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.feed-title { font-size: 13px; font-weight: 600; font-family: var(--mono); color: var(--text2); letter-spacing: 0.06em; text-transform: uppercase; flex: 1; }
+.feed-clear { font-size: 11px; color: var(--text3); cursor: pointer; font-family: var(--mono); }
+.feed-clear:hover { color: var(--text2); }
+.feed-body {
+  padding: 20px 24px;
+  max-height: 420px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px;
+  font-family: var(--mono); font-size: 12px;
+  min-height: 120px;
+}
+.feed-empty {
+  color: var(--text3); text-align: center;
+  padding: 40px 0; font-family: var(--mono); font-size: 12px;
+}
+.feed-item {
+  display: flex; gap: 12px; align-items: flex-start;
+  animation: feed-in 0.3s ease;
+}
+@keyframes feed-in { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+.feed-icon { font-size: 16px; flex-shrink: 0; line-height: 1.4; }
+.feed-content { flex: 1; }
+.feed-agent { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 3px; }
+.feed-text { color: var(--text2); line-height: 1.6; }
+.feed-text strong { color: var(--text); font-weight: 600; }
+.feed-time { font-size: 9px; color: var(--text3); margin-top: 3px; }
+
+/* ── BOARD RESOLUTION ── */
+.resolution {
+  background: var(--surface);
+  border: 1px solid rgba(245,200,66,0.2);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+.resolution-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(245,200,66,0.15);
+  background: rgba(245,200,66,0.04);
+  display: flex; align-items: center; gap: 10px;
+}
+.resolution-title { font-size: 13px; font-weight: 700; color: var(--gold); font-family: var(--mono); letter-spacing: 0.06em; text-transform: uppercase; flex: 1; }
+.resolution-body {
+  padding: 24px;
+  font-family: var(--mono); font-size: 12.5px;
+  color: var(--text2); line-height: 1.8;
+  max-height: 500px; overflow-y: auto;
+  white-space: pre-wrap;
+}
+.resolution-body strong { color: var(--gold); }
+
+/* ── DIRECT CHAT PANEL ── */
+.chat-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+.chat-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.chat-agent-pick {
+  display: flex; gap: 6px; flex-wrap: wrap; padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.agent-pick-btn {
+  font-size: 11px; font-weight: 600; font-family: var(--mono);
+  padding: 4px 10px; border-radius: 8px;
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--text2); cursor: pointer; transition: all 0.13s;
+}
+.agent-pick-btn:hover, .agent-pick-btn.selected {
+  background: var(--gold-dim); color: var(--gold);
+  border-color: rgba(245,200,66,0.25);
+}
+.chat-messages {
+  padding: 20px 24px; min-height: 120px; max-height: 300px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.chat-msg {
+  display: flex; gap: 10px; align-items: flex-start;
+  animation: feed-in 0.3s ease;
+}
+.chat-msg.user { flex-direction: row-reverse; }
+.chat-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0;
+  background: var(--card2); border: 1px solid var(--border);
+}
+.chat-msg.user .chat-avatar { background: var(--gold-dim); border-color: rgba(245,200,66,0.2); }
+.chat-bubble {
+  max-width: 75%;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 14px;
+  font-size: 13px; line-height: 1.6; color: var(--text2);
+}
+.chat-msg.user .chat-bubble {
+  background: var(--gold-dim); border-color: rgba(245,200,66,0.2);
+  color: var(--text);
+}
+.chat-input-row {
+  padding: 14px 24px; border-top: 1px solid var(--border);
+  display: flex; gap: 10px;
+}
+.chat-input {
+  flex: 1; background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px;
+  font-family: var(--sans); font-size: 13px; color: var(--text);
+  outline: none; transition: border-color 0.15s;
+}
+.chat-input:focus { border-color: rgba(245,200,66,0.3); }
+.chat-input::placeholder { color: var(--text3); }
+.chat-send {
+  background: var(--gold); color: #0a0b0f;
+  border: none; border-radius: 10px; padding: 10px 16px;
+  font-family: var(--sans); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.chat-send:hover { background: #f0ba30; }
+.chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── API KEY SETUP ── */
+.setup-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.setup-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 420px; width: 100%;
+  margin: 0 20px;
+}
+.setup-icon { font-size: 40px; margin-bottom: 16px; text-align: center; }
+.setup-title { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 6px; text-align: center; }
+.setup-sub { font-size: 13px; color: var(--text2); text-align: center; margin-bottom: 24px; line-height: 1.6; }
+.setup-input {
+  width: 100%; background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 16px;
+  font-family: var(--mono); font-size: 13px; color: var(--text);
+  outline: none; margin-bottom: 14px; transition: border-color 0.15s;
+}
+.setup-input:focus { border-color: rgba(245,200,66,0.3); }
+.setup-btn {
+  width: 100%; background: var(--gold); color: #0a0b0f;
+  border: none; border-radius: 10px; padding: 13px;
+  font-family: var(--sans); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.setup-btn:hover { background: #f0ba30; }
+
+/* ── TYPING INDICATOR ── */
+.typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+.typing span {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--text3); animation: typing-dot 1.2s ease-in-out infinite;
+}
+.typing span:nth-child(2) { animation-delay: 0.2s; }
+.typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing-dot { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }
+
+/* ── ALERT TICKER ── */
+.alert-ticker {
+  background: rgba(245,95,95,0.08);
+  border: 1px solid rgba(245,95,95,0.15);
+  border-radius: 10px; padding: 10px 18px;
+  display: flex; gap: 10px; align-items: center;
+  margin-bottom: 20px; font-size: 12.5px;
+  font-family: var(--mono); color: var(--red);
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ── MOBILE ── */
+@media (max-width: 640px) {
+  .header { padding: 0 16px; }
+  .boardroom { padding: 24px 16px; }
+  .controls { gap: 8px; }
+  .btn { padding: 8px 14px; font-size: 12px; }
+  .boardroom-heading { font-size: 24px; }
+  .feed-body, .resolution-body, .chat-messages { padding: 14px 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="starfield"></div>
+
+<!-- SETUP OVERLAY -->
+<div class="setup-overlay" id="setup-overlay">
+  <div class="setup-card">
+    <div class="setup-icon">👑</div>
+    <div class="setup-title">Shan Group AI Board Room</div>
+    <div class="setup-sub">Enter your Anthropic API key to activate all 10 board members. Your key is stored locally and never transmitted.</div>
+    <input type="password" class="setup-input" id="api-key-input" placeholder="sk-ant-..." />
+    <button class="setup-btn" onclick="activateBoard()">Convene the Board →</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">S</div>
+    <div>
+      <div class="header-title">Shan Group AI Board Room</div>
+      <div class="header-sub">Accessible Home Health Care of Aventura</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="session-badge" id="session-badge">
+      <div class="pulse-dot"></div>
+      <span id="session-label">Board Standby</span>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+<div class="boardroom">
+
+  <!-- CRITICAL ALERT -->
+  <div class="alert-ticker">
+    ⚠️ &nbsp;<strong>CRITICAL:</strong>&nbsp; Broward BARC GEN2124024B1 — Insurance Gap: $1M vs $2M required. Call NEA Insurance 305-221-2400 immediately. FL Minority Business Cert expired 10/26/2025 — renew now.
+  </div>
+
+  <div class="boardroom-title">Live Session — Shan Group, LLC</div>
+  <div class="boardroom-heading">The <em>Board</em> is in session</div>
+  <div class="boardroom-sub">10 AI agents working autonomously on government contracts, compliance, and growth</div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <button class="btn btn-primary" id="btn-convene" onclick="conveneBoard()">
+      👑 Convene Full Board Session
+    </button>
+    <button class="btn btn-secondary" onclick="runScout()">
+      🔍 Run Scout Now
+    </button>
+    <button class="btn btn-secondary" onclick="runShield()">
+      🛡️ Run Shield Now
+    </button>
+    <button class="btn btn-secondary" onclick="clearAll()">
+      Clear Feed
+    </button>
+  </div>
+
+  <!-- AGENT GRID (the board room table) -->
+  <div class="table-wrap">
+    <div class="table-header">
+      <div class="table-title">Board Members</div>
+      <div class="table-status" id="active-count">0 agents active</div>
+    </div>
+    <div class="agent-grid" id="agent-grid"></div>
+  </div>
+
+  <!-- BOARD RESOLUTION (appears after full board session) -->
+  <div class="resolution" id="resolution-panel" style="display:none">
+    <div class="resolution-header">
+      <div class="resolution-title">📋 Board Resolution</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono)" id="resolution-date"></div>
+    </div>
+    <div class="resolution-body" id="resolution-body"></div>
+  </div>
+
+  <!-- LIVE FEED -->
+  <div class="session-feed">
+    <div class="feed-header">
+      <div class="feed-title">⚡ Live Board Feed</div>
+      <div class="feed-clear" onclick="clearFeed()">Clear</div>
+    </div>
+    <div class="feed-body" id="feed-body">
+      <div class="feed-empty" id="feed-empty">Board on standby — convene a session or run an individual agent</div>
+    </div>
+  </div>
+
+  <!-- DIRECT CHAT -->
+  <div class="chat-panel">
+    <div class="chat-header">
+      <div class="feed-title" style="font-size:13px;font-weight:600;font-family:var(--mono);color:var(--text2);letter-spacing:0.06em;text-transform:uppercase">💬 Direct Agent Chat</div>
+    </div>
+    <div class="chat-agent-pick" id="agent-pick"></div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="feed-empty" id="chat-empty">Select an agent above and ask anything</div>
+    </div>
+    <div class="chat-input-row">
+      <input type="text" class="chat-input" id="chat-input" placeholder="Ask an agent..." onkeydown="if(event.key==='Enter')sendChat()" />
+      <button class="chat-send" id="chat-send-btn" onclick="sendChat()">Send</button>
+    </div>
+  </div>
+
+</div>
+</main>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let apiKey = '';
+let selectedAgent = null;
+let chatHistory = [];
+let activeCount = 0;
+
+const CTX = `SHAN GROUP LLC - VERIFIED PROFILE
+LEGAL: Shan Group, LLC | DBA: Accessible Home Health Care of Aventura | OWNER: Ali Mandsaurwala
+EIN: 27-3818953 | UEI: KFF4PM5PM468 | CAGE: 8WJN9 | E-Verify: 2118796
+ADDRESS: 15251 NE 18th Avenue, Suite 9, North Miami Beach, FL 33162
+PHONE: 305.627.3103 | EMAIL: alim@ahhcfl.com
+STAFF: 1,234 RNs | 508 LPNs | 698 CNAs | 1,074 HHAs
+DEPLOYMENT: 50 nurses 24hrs | 40-60 in 72hrs | 500-750 in 7-12 days
+CERTS: SAM.gov Active | FL License #299993833 | Joint Commission #508491 | FL Minority Business Cert EXPIRED 10/26/2025 — RENEW IMMEDIATELY | HIPAA BAA-capable | Level 2 FDLE | 10-panel drug screen
+INSURANCE: GL $1M/$3M Philadelphia Indemnity PHPK2504272 | Workers Comp Bridgefield 019654222 | Prof Liability $1M — BROWARD REQUIRES $2M GAP | NEA Insurance Group 305-221-2400
+PAST PERFORMANCE: FDEM 17 missions $22,005,180 | Oregon OHA $60M thru 2028 | Hillsborough 56 shelters | UM | Mount Sinai | CPS
+ACTIVE BIDS: Broward BARC GEN2124024B1 $2.25M PENDING (INSURANCE GAP) | Sarasota 242595MN $1.72M Submitted | Orange County Y24-121 $1.06M/yr Submitted | Pinellas 23-0509-RFP Submitted | Citrus BH-2023-RFQ-01 Active
+REFERENCES: Grace Sullivan 720-215-9199 | Eric Gebbie 503-358-7621 | Nick Mayernick 850-273-2630 | Leanne LeFebvre 210-352-5175
+RATES: RN $85-110/hr | LPN $70/hr | CNA $55/hr | Corrections RN $110/hr | Oregon RN Lead $205/hr`;
+
+const AGENTS = [
+  { id:"vc",        name:"Vice-Chairman", role:"Orchestrator",   icon:"👑", color:"#f5c842", states:["Convening board","Reviewing briefs","Issuing resolution"] },
+  { id:"scout",     name:"Scout",         role:"Contract Intel", icon:"🔍", color:"#4f8ef7", states:["Scanning SAM.gov","Filtering results","Scoring matches"] },
+  { id:"intel",     name:"Intel",         role:"Competitive",    icon:"🧠", color:"#a78bfa", states:["Analyzing bids","Researching rivals","Assessing odds"] },
+  { id:"shield",    name:"Shield",        role:"Compliance",     icon:"🛡️", color:"#f55f5f", states:["Checking deadlines","Flagging gaps","Reviewing certs"] },
+  { id:"commander", name:"Commander",     role:"Bid Strategy",   icon:"⚔️", color:"#f5a442", states:["Running analysis","Weighing risks","Deciding GO/NO-GO"] },
+  { id:"writer",    name:"Writer",        role:"Proposals",      icon:"✍️", color:"#3ecf8e", states:["Drafting sections","Pulling past perf","Formatting bid"] },
+  { id:"emailer",   name:"Emailer",       role:"Outreach",       icon:"📧", color:"#4f8ef7", states:["Drafting email","Checking contacts","Routing to inbox"] },
+  { id:"recruiter", name:"Recruiter",     role:"Staffing",       icon:"👥", color:"#3ecf8e", states:["Building roster","Checking availability","Scheduling staff"] },
+  { id:"pathfinder",name:"Pathfinder",    role:"Growth",         icon:"🗺️", color:"#a78bfa", states:["Scouting markets","Reviewing certs","Mapping strategy"] },
+  { id:"liaison",   name:"Liaison",       role:"Relationships",  icon:"🤝", color:"#f5c842", states:["Reviewing contacts","Drafting outreach","Updating CRM"] },
+];
+
+const SYSTEM_PROMPTS = {
+  vc: `You are the VICE-CHAIRMAN of the AI Agent Board for Shan Group LLC. ${CTX}\nYour role: Orchestrate all 9 board agents, run formal board sessions, deliver Board Resolutions. When convening a full board session, produce a complete BOARD RESOLUTION with these sections: BOARD RESOLUTION #[DATE] | AGENTS CONSULTED | EXECUTIVE SUMMARY (3 sentences) | NEW OPPORTUNITIES (bullet list with match scores) | COMPLIANCE FLAGS (critical items, flag Broward insurance gap and expired FL Minority Cert) | PIPELINE STATUS (all 5 active bids) | CHAIRMAN ACTION REQUIRED (numbered list of items needing Ali's decision today). Be specific, use real data from the profile, be decisive.`,
+  scout: `You are SCOUT for Shan Group LLC — government contract intelligence agent. ${CTX}\nYour role: Find and prioritize contract opportunities matching NAICS 561320. Search SAM.gov for nursing, home health, behavioral health, emergency staffing, disaster response. Target FL, OR, national. For each opportunity: Agency, Solicitation #, Due Date, Value, Match Score 1-10, Why We Qualify. Always flag Broward BARC GEN2124024B1 insurance gap. Be specific and actionable.`,
+  intel: `You are INTEL for Shan Group LLC — competitive intelligence agent. ${CTX}\nYour role: Competitive analysis on all active bids. For each: Incumbent, Competition Level, Win Probability %, Top 3 Differentiators, Top 2 Risks, Win Strategy. Be specific, use real data.`,
+  shield: `You are SHIELD for Shan Group LLC — compliance and risk agent. ${CTX}\nCRITICAL: Broward BARC requires $2M Prof Liability — we have $1M — call NEA Insurance 305-221-2400. FL Minority Business Cert EXPIRED 10/26/2025 — renew immediately. Broward CONE OF SILENCE ACTIVE. Your role: Daily compliance review, flag all gaps and expiring items. Be urgent and specific.`,
+  commander: `You are COMMANDER for Shan Group LLC — bid strategy agent. ${CTX}\nYour role: Decisive Go/No-Go analysis. Output: GO or NO-GO | Win Probability % | Top 3 Strengths | Top 2 Risks | Pricing Strategy | Recommended Action. Be decisive.`,
+  writer: `You are WRITER for Shan Group LLC — proposal drafting agent. ${CTX}\nYour role: Draft complete government proposals. Always include UEI KFF4PM5PM468, CAGE 8WJN9, EIN 27-3818953. Structure: Executive Summary, Technical Approach, Management Plan, Key Personnel, Past Performance (with $$ values), Certifications, Price Rationale.`,
+  emailer: `You are EMAILER for Shan Group LLC — professional outreach agent. ${CTX}\nCRITICAL: Broward CONE OF SILENCE — only contact Purchasing Division 954-357-6400. All emails go to approval inbox before sending. Always include UEI, CAGE, phone, email in every outreach.`,
+  recruiter: `You are RECRUITER for Shan Group LLC — staffing agent. ${CTX}\nYour role: Build staffing plans. Output: Staffing matrix with roles/hours/rates | Recruitment timeline | Deployment schedule | Cost projection.`,
+  pathfinder: `You are PATHFINDER for Shan Group LLC — strategic growth agent. ${CTX}\nFL Minority Business Cert EXPIRED — renew immediately. Priority: 8(a) SBA cert, GSA Schedule 621I, IHS tribal, VA CCN, FEMA IDIQ. Output: Certification/market | Value unlocked | Steps | Timeline | Win probability improvement.`,
+  liaison: `You are LIAISON for Shan Group LLC — relationship management agent. ${CTX}\nACTIVE: Israel Segarra Hillsborough 813-272-5636 | Eric Gebbie Oregon 503-358-7621 | Nick Mayernick FDEM 850-273-2630. CONE OF SILENCE: Broward — only Purchasing 954-357-6400. All outreach goes to approval inbox first.`,
+};
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init() {
+  try {
+    const saved = localStorage.getItem('sg_boardroom_key');
+    if (saved) { apiKey = saved; document.getElementById('setup-overlay').style.display = 'none'; }
+  } catch(e) {}
+  renderAgentGrid();
+  renderAgentPicker();
+}
+
+function activateBoard() {
+  const input = document.getElementById('api-key-input').value.trim();
+  if (!input.startsWith('sk-ant-')) { alert('Please enter a valid Anthropic API key starting with sk-ant-'); return; }
+  apiKey = input;
+  try { localStorage.setItem('sg_boardroom_key', apiKey); } catch(e) {}
+  document.getElementById('setup-overlay').style.display = 'none';
+}
+
+// ── RENDER AGENTS ─────────────────────────────────────────────────────────────
+function renderAgentGrid() {
+  const grid = document.getElementById('agent-grid');
+  grid.innerHTML = AGENTS.map(a => `
+    <div class="agent-cell" id="cell-${a.id}" onclick="selectAgentForChat('${a.id}')">
+      <div class="minion-wrap">
+        <div class="minion" style="background:${a.color}22;border-color:${a.color}33" id="minion-${a.id}">
+          <span id="icon-${a.id}">${a.icon}</span>
+        </div>
+        <div class="speech-bubble" id="bubble-${a.id}">standby</div>
+      </div>
+      <div class="agent-name" style="color:${a.color}">${a.name}</div>
+      <div class="agent-role">${a.role}</div>
+      <div class="agent-status-badge" id="badge-${a.id}">STANDBY</div>
+    </div>
+  `).join('');
+}
+
+function renderAgentPicker() {
+  const pick = document.getElementById('agent-pick');
+  pick.innerHTML = AGENTS.map(a => `
+    <button class="agent-pick-btn" id="pick-${a.id}" onclick="selectAgentForChat('${a.id}')">${a.icon} ${a.name}</button>
+  `).join('');
+}
+
+// ── AGENT STATE ───────────────────────────────────────────────────────────────
+function setAgentState(id, state, bubbleText) {
+  const cell = document.getElementById(`cell-${id}`);
+  if (!cell) return;
+  cell.className = 'agent-cell ' + state;
+  const badge = document.getElementById(`badge-${id}`);
+  const bubble = document.getElementById(`bubble-${id}`);
+  if (badge) badge.textContent = state.toUpperCase() || 'STANDBY';
+  if (bubble) bubble.textContent = bubbleText || 'standby';
+  updateActiveCount();
+}
+
+function updateActiveCount() {
+  const active = document.querySelectorAll('.agent-cell.thinking, .agent-cell.speaking, .agent-cell.active, .agent-cell.alerting').length;
+  document.getElementById('active-count').textContent = active + ' agent' + (active===1?'':'s') + ' active';
+}
+
+function resetAgent(id) {
+  setAgentState(id, '', 'standby');
+  const badge = document.getElementById(`badge-${id}`);
+  if (badge) badge.textContent = 'STANDBY';
+}
+
+// ── FEED ──────────────────────────────────────────────────────────────────────
+function addFeed(agentId, text, type) {
+  const agent = AGENTS.find(a => a.id === agentId);
+  const feed = document.getElementById('feed-body');
+  const empty = document.getElementById('feed-empty');
+  if (empty) empty.style.display = 'none';
+  const item = document.createElement('div');
+  item.className = 'feed-item';
+  const now = new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
+  item.innerHTML = `
+    <div class="feed-icon">${agent ? agent.icon : '⚡'}</div>
+    <div class="feed-content">
+      <div class="feed-agent" style="color:${agent ? agent.color : 'var(--gold)'}">${agent ? agent.name : agentId}</div>
+      <div class="feed-text">${text}</div>
+      <div class="feed-time">${now}</div>
+    </div>
+  `;
+  feed.appendChild(item);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function clearFeed() {
+  const feed = document.getElementById('feed-body');
+  feed.innerHTML = '<div class="feed-empty" id="feed-empty">Board on standby — convene a session or run an individual agent</div>';
+}
+
+function clearAll() {
+  clearFeed();
+  document.getElementById('resolution-panel').style.display = 'none';
+  AGENTS.forEach(a => resetAgent(a.id));
+  document.getElementById('session-label').textContent = 'Board Standby';
+}
+
+// ── CLAUDE API ────────────────────────────────────────────────────────────────
+async function callAgent(agentId, prompt, streaming) {
+  const agent = AGENTS.find(a => a.id === agentId);
+  const system = SYSTEM_PROMPTS[agentId] || CTX;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.content[0].text;
+  } catch(e) {
+    return `Error: ${e.message}`;
+  }
+}
+
+// ── SCOUT ─────────────────────────────────────────────────────────────────────
+async function runScout() {
+  setAgentState('scout', 'thinking', 'scanning SAM.gov...');
+  document.getElementById('session-label').textContent = 'Scout Running';
+  addFeed('scout', 'Starting SAM.gov scan — searching NAICS 561320, FL + OR + national...', 'info');
+  await delay(800);
+  setAgentState('scout', 'active', 'finding matches...');
+  const result = await callAgent('scout', 'Run your morning SAM.gov scan. Find all active opportunities matching our profile closing within 60 days. Provide a structured list with match scores.');
+  setAgentState('scout', 'speaking', 'reporting findings');
+  addFeed('scout', result.substring(0, 200) + (result.length > 200 ? '...' : ''), 'result');
+  await delay(1500);
+  resetAgent('scout');
+  document.getElementById('session-label').textContent = 'Board Standby';
+}
+
+// ── SHIELD ────────────────────────────────────────────────────────────────────
+async function runShield() {
+  setAgentState('shield', 'alerting', 'checking compliance...');
+  document.getElementById('session-label').textContent = 'Shield Running';
+  addFeed('shield', 'Running daily compliance check — insurance, certifications, cone of silence...', 'info');
+  await delay(600);
+  const result = await callAgent('shield', 'Run your daily compliance check. Flag all critical issues, expired certifications, and insurance gaps. Be urgent about the Broward situation.');
+  setAgentState('shield', 'speaking', 'flagging issues');
+  addFeed('shield', result.substring(0, 200) + (result.length > 200 ? '...' : ''), 'alert');
+  await delay(1500);
+  resetAgent('shield');
+  document.getElementById('session-label').textContent = 'Board Standby';
+}
+
+// ── FULL BOARD SESSION ────────────────────────────────────────────────────────
+async function conveneBoard() {
+  const btn = document.getElementById('btn-convene');
+  btn.disabled = true;
+  btn.textContent = '⏳ Session in progress...';
+  document.getElementById('session-label').textContent = 'Full Board Session';
+  clearFeed();
+
+  // Phase 1 — Vice-Chairman opens
+  setAgentState('vc', 'active', 'opening session...');
+  addFeed('vc', '🔔 BOARD SESSION CALLED TO ORDER — Vice-Chairman presiding. All agents please report.', 'system');
+  await delay(1000);
+
+  // Phase 2 — Scout reports
+  setAgentState('scout', 'thinking', 'scanning SAM.gov...');
+  addFeed('scout', 'Running morning SAM.gov scan — NAICS 561320, FL + OR + national disaster response...', 'info');
+  await delay(600);
+  setAgentState('scout', 'speaking', 'reporting to VC');
+  const scoutResult = await callAgent('scout', 'Quick morning report for the Vice-Chairman board session. Top 3 opportunities found today, one sentence each with match score.');
+  addFeed('scout', scoutResult, 'result');
+  await delay(500);
+  resetAgent('scout');
+
+  // Phase 3 — Shield reports
+  setAgentState('shield', 'alerting', 'checking compliance...');
+  addFeed('shield', 'Running compliance scan — insurance gaps, cert expirations, cone of silence status...', 'info');
+  await delay(600);
+  setAgentState('shield', 'speaking', 'reporting to VC');
+  const shieldResult = await callAgent('shield', 'Quick compliance report for the Vice-Chairman board session. Top 3 critical flags, one sentence each. Be urgent about Broward and expired FL Minority Cert.');
+  addFeed('shield', shieldResult, 'alert');
+  await delay(500);
+  resetAgent('shield');
+
+  // Phase 4 — Commander weighs in
+  setAgentState('commander', 'thinking', 'analyzing bids...');
+  addFeed('commander', 'Reviewing all active bids for Go/No-Go status updates...', 'info');
+  await delay(600);
+  setAgentState('commander', 'speaking', 'reporting to VC');
+  const commanderResult = await callAgent('commander', 'Quick bid status report for the Vice-Chairman board session. For each active bid give one-line Go/No-Go with win probability.');
+  addFeed('commander', commanderResult, 'result');
+  await delay(500);
+  resetAgent('commander');
+
+  // Phase 5 — Vice-Chairman issues resolution
+  setAgentState('vc', 'thinking', 'drafting resolution...');
+  addFeed('vc', 'Synthesizing all agent reports — drafting Board Resolution for Chairman Ali...', 'info');
+  await delay(800);
+
+  const resolutionPrompt = `Based on this morning's board session, issue a formal Board Resolution. Scout found opportunities, Shield flagged the Broward insurance gap ($1M vs $2M needed) and expired FL Minority Business Cert (10/26/2025), Commander reviewed active bids. 
+
+Write a complete Board Resolution with these exact sections:
+BOARD RESOLUTION #${new Date().toISOString().split('T')[0]}
+
+AGENTS CONSULTED:
+[list agents]
+
+EXECUTIVE SUMMARY:
+[3 sentences]
+
+NEW OPPORTUNITIES:
+[bullet list with match scores from Scout's findings]
+
+COMPLIANCE FLAGS:
+[bullet list — lead with Broward insurance gap as CRITICAL]
+
+PIPELINE STATUS:
+[one line per active bid]
+
+CHAIRMAN ACTION REQUIRED:
+[numbered list — what Ali must decide today]`;
+
+  const resolution = await callAgent('vc', resolutionPrompt);
+
+  setAgentState('vc', 'speaking', 'delivering resolution');
+  addFeed('vc', '📋 Board Resolution issued — see resolution panel below.', 'system');
+
+  // Show resolution panel
+  document.getElementById('resolution-panel').style.display = 'block';
+  document.getElementById('resolution-date').textContent = new Date().toLocaleString();
+  document.getElementById('resolution-body').innerHTML = resolution.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+
+  await delay(1500);
+  resetAgent('vc');
+
+  // All agents bow out
+  addFeed('vc', '✅ Board session complete. All agents returning to standby. Next session: tomorrow 7:30 AM.', 'system');
+  document.getElementById('session-label').textContent = 'Session Complete';
+  btn.disabled = false;
+  btn.textContent = '👑 Convene Full Board Session';
+}
+
+// ── DIRECT CHAT ───────────────────────────────────────────────────────────────
+function selectAgentForChat(id) {
+  selectedAgent = id;
+  chatHistory = [];
+  document.querySelectorAll('.agent-pick-btn').forEach(b => b.classList.remove('selected'));
+  const btn = document.getElementById(`pick-${id}`);
+  if (btn) btn.classList.add('selected');
+  const msgs = document.getElementById('chat-messages');
+  const agent = AGENTS.find(a => a.id === id);
+  msgs.innerHTML = `<div class="feed-empty">Connected to <strong style="color:${agent.color}">${agent.icon} ${agent.name}</strong> — ask anything</div>`;
+}
+
+async function sendChat() {
+  if (!selectedAgent) { alert('Select an agent first'); return; }
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  const msgs = document.getElementById('chat-messages');
+  const emptyEl = msgs.querySelector('.feed-empty');
+  if (emptyEl) emptyEl.remove();
+
+  // User bubble
+  const userDiv = document.createElement('div');
+  userDiv.className = 'chat-msg user';
+  userDiv.innerHTML = `<div class="chat-avatar">👤</div><div class="chat-bubble">${msg}</div>`;
+  msgs.appendChild(userDiv);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // Typing indicator
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'chat-msg';
+  const agent = AGENTS.find(a => a.id === selectedAgent);
+  typingDiv.innerHTML = `<div class="chat-avatar">${agent.icon}</div><div class="chat-bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  msgs.appendChild(typingDiv);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  setAgentState(selectedAgent, 'thinking', 'thinking...');
+
+  chatHistory.push({ role: 'user', content: msg });
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPTS[selectedAgent] || CTX,
+        messages: chatHistory,
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const reply = data.content[0].text;
+    chatHistory.push({ role: 'assistant', content: reply });
+
+    typingDiv.remove();
+    const replyDiv = document.createElement('div');
+    replyDiv.className = 'chat-msg';
+    replyDiv.innerHTML = `<div class="chat-avatar">${agent.icon}</div><div class="chat-bubble" style="color:var(--text)">${reply.replace(/\n/g,'<br>')}</div>`;
+    msgs.appendChild(replyDiv);
+    msgs.scrollTop = msgs.scrollHeight;
+    setAgentState(selectedAgent, 'speaking', 'replied');
+    await delay(2000);
+    resetAgent(selectedAgent);
+  } catch(e) {
+    typingDiv.remove();
+    const errDiv = document.createElement('div');
+    errDiv.className = 'chat-msg';
+    errDiv.innerHTML = `<div class="chat-avatar">${agent.icon}</div><div class="chat-bubble" style="color:var(--red)">Error: ${e.message}</div>`;
+    msgs.appendChild(errDiv);
+    resetAgent(selectedAgent);
+  }
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+init();
+</script>
+</body>
+</html>
