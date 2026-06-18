@@ -600,17 +600,13 @@ END OF RESOLUTION`
 
   // VC delivers resolution
   setAgent('vc', 'speaking', 'Delivering resolution!', 'DELIVERING');
-  addFeed('vc', '📋 BOARD RESOLUTION ISSUED — See Resolution tab.');
+  addFeed('vc', '📋 BOARD RESOLUTION ISSUED — Preparing Executive Brief for Chairman Ali...');
 
-  // Show resolution
+  // Store raw for sidebar
   document.getElementById('res-empty').style.display = 'none';
   const resContent = document.getElementById('res-content');
   resContent.style.display = 'block';
-  resContent.innerHTML = `
-    <div class="resolution">
-      <div class="res-title">📋 Board Resolution — ${new Date().toLocaleString()}</div>
-      <div class="res-body">${resolution.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
-    </div>`;
+  resContent.innerHTML = `<div class="resolution"><div class="res-title">📋 Board Resolution — ${new Date().toLocaleString()}</div><div class="res-body">${resolution.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div></div>`;
 
   // VC broadcasts resolution to all agents
   const conns2 = AGENTS.filter(a=>a.id!=='vc').map(a => addConnection('vc', a.id, '📋', '#f5c842'));
@@ -620,10 +616,166 @@ END OF RESOLUTION`
   // All stand down
   await delay(500);
   AGENTS.forEach(a => setAgent(a.id, 'idle', '', 'STANDBY'));
-  addFeed('vc', '✅ Session complete. All agents standing by. Next session: tomorrow 7:30 AM ET.');
+  addFeed('vc', '✅ Session complete. Executive Brief ready for Chairman.');
   document.getElementById('sess-label').textContent = 'Session Complete';
   document.getElementById('btn-convene').disabled = false;
   sessionRunning = false;
+
+  // Show Executive Brief overlay
+  showExecutiveBrief({scoutResult, shieldResult, cmdResult, intelResult, resolution});
+}
+
+// ── EXECUTIVE BRIEF OVERLAY ───────────────────────────────────────────────────
+function showExecutiveBrief({scoutResult, shieldResult, cmdResult, intelResult, resolution}) {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  const timeStr = now.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+
+  // Parse resolution into sections
+  function extractSection(text, label) {
+    const regex = new RegExp(label + '[:\\s]*([\\s\\S]*?)(?=\\n[A-Z][A-Z ]+:|END OF RESOLUTION|$)', 'i');
+    const m = text.match(regex);
+    return m ? m[1].trim() : '';
+  }
+  const summary  = extractSection(resolution, 'EXECUTIVE SUMMARY');
+  const opps     = extractSection(resolution, 'NEW OPPORTUNITIES');
+  const flags    = extractSection(resolution, 'COMPLIANCE FLAGS');
+  const pipeline = extractSection(resolution, 'BID PIPELINE STATUS');
+  const actions  = extractSection(resolution, 'CHAIRMAN ACTION REQUIRED');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'brief-overlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:500;
+    background:rgba(7,8,13,0.97);
+    backdrop-filter:blur(20px);
+    overflow-y:auto;
+    animation:brief-in .4s ease;
+  `;
+
+  overlay.innerHTML = `
+  <style>
+  @keyframes brief-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes slide-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .brief-section{animation:slide-up .4s ease both}
+  </style>
+  <div style="max-width:780px;margin:0 auto;padding:40px 24px 80px">
+
+    <!-- HEADER -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:36px">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--gold);font-family:var(--mono);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px">
+          BOARD RESOLUTION · ${dateStr}
+        </div>
+        <div style="font-size:32px;font-weight:700;letter-spacing:-.04em;line-height:1.1;margin-bottom:6px">
+          Executive Daily Brief
+        </div>
+        <div style="font-size:14px;color:var(--text2)">
+          Shan Group, LLC · Prepared by Vice-Chairman · ${timeStr} ET
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button onclick="copyBrief()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-family:var(--sans);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer">📋 Copy</button>
+        <button onclick="document.getElementById('brief-overlay').remove()" style="background:var(--gold);border:none;border-radius:8px;padding:8px 14px;font-family:var(--sans);font-size:12px;font-weight:700;color:#07080d;cursor:pointer">✕ Close</button>
+      </div>
+    </div>
+
+    <!-- ALERT BANNER if compliance issues -->
+    <div style="background:rgba(245,95,95,0.08);border:1px solid rgba(245,95,95,0.2);border-radius:12px;padding:14px 18px;margin-bottom:24px;display:flex;gap:12px;align-items:flex-start">
+      <span style="font-size:18px;flex-shrink:0">🚨</span>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--red);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">CRITICAL — Immediate Action Required</div>
+        <div style="font-size:13px;color:#f89090;line-height:1.55">Broward BARC GEN2124024B1: Insurance gap — we have $1M, they require $2M Professional Liability. <strong style="color:var(--red)">Call NEA Insurance 305-221-2400 today.</strong> Also: FL Minority Business Cert expired 10/26/2025 — renew immediately.</div>
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="brief-section" style="animation-delay:.05s;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:16px">
+      <div style="font-size:10px;font-weight:700;color:var(--text2);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">📊 Executive Summary</div>
+      <div style="font-size:14px;color:var(--text);line-height:1.7">${(summary || scoutResult.slice(0,400)).replace(/\n/g,'<br>')}</div>
+    </div>
+
+    <!-- 3 COLUMNS: Opportunities / Pipeline / Intel -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+
+      <div class="brief-section" style="animation-delay:.1s;background:var(--surface);border:1px solid rgba(79,142,247,0.2);border-radius:14px;padding:20px">
+        <div style="font-size:10px;font-weight:700;color:var(--blue);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">🔍 New Opportunities — Scout</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65;font-family:var(--mono)">${(opps || scoutResult).replace(/\n/g,'<br>').replace(/(\d+\/10|\d+\/10)/g,'<strong style="color:var(--blue)">$1</strong>')}</div>
+      </div>
+
+      <div class="brief-section" style="animation-delay:.15s;background:var(--surface);border:1px solid rgba(245,164,66,0.2);border-radius:14px;padding:20px">
+        <div style="font-size:10px;font-weight:700;color:var(--orange);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">⚔️ Bid Pipeline — Commander</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65;font-family:var(--mono)">${(pipeline || cmdResult).replace(/\n/g,'<br>').replace(/(GO|✅)/g,'<strong style="color:var(--green)">$1</strong>').replace(/(NO-GO|❌)/g,'<strong style="color:var(--red)">$1</strong>').replace(/(\d+%)/g,'<strong style="color:var(--orange)">$1</strong>')}</div>
+      </div>
+
+      <div class="brief-section" style="animation-delay:.2s;background:var(--surface);border:1px solid rgba(167,139,250,0.2);border-radius:14px;padding:20px">
+        <div style="font-size:10px;font-weight:700;color:var(--purple);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">🧠 Competitive Intel</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65;font-family:var(--mono)">${(intelResult).replace(/\n/g,'<br>').replace(/(\d+%)/g,'<strong style="color:var(--purple)">$1</strong>')}</div>
+      </div>
+
+      <div class="brief-section" style="animation-delay:.25s;background:var(--surface);border:1px solid rgba(245,95,95,0.2);border-radius:14px;padding:20px">
+        <div style="font-size:10px;font-weight:700;color:var(--red);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">🛡️ Compliance Flags — Shield</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65;font-family:var(--mono)">${(flags || shieldResult).replace(/\n/g,'<br>')}</div>
+      </div>
+
+    </div>
+
+    <!-- CHAIRMAN ACTION REQUIRED -->
+    <div class="brief-section" style="animation-delay:.3s;background:linear-gradient(135deg,rgba(245,200,66,0.08),rgba(245,200,66,0.03));border:1px solid rgba(245,200,66,0.25);border-radius:14px;padding:22px;margin-bottom:16px">
+      <div style="font-size:10px;font-weight:700;color:var(--gold);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">👑 Chairman Action Required — Ali Mandsaurwala</div>
+      <div style="font-size:14px;color:var(--text);line-height:1.8;font-family:var(--mono)">${(actions || '1. Call NEA Insurance 305-221-2400 — resolve Broward $2M liability gap\n2. Renew FL Minority Business Cert — expired 10/26/2025\n3. Review Scout\'s new opportunities and confirm pursuit strategy').replace(/\n/g,'<br>').replace(/^(\d+\.)/gm,'<span style="color:var(--gold);font-weight:700">$1</span>')}</div>
+    </div>
+
+    <!-- AGENTS CONSULTED -->
+    <div class="brief-section" style="animation-delay:.35s;display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">
+      ${AGENTS.map(a=>`<div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:11px;font-family:var(--mono);color:${a.color}">${a.icon} ${a.name}</div>`).join('')}
+    </div>
+
+    <!-- FOOTER -->
+    <div style="border-top:1px solid var(--border);padding-top:16px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">Generated by Shan Group AI Board · ${dateStr} · ${timeStr} ET</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">UEI: KFF4PM5PM468 · CAGE: 8WJN9</div>
+    </div>
+
+  </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Store brief text for copy
+  window._briefText = `SHAN GROUP LLC — EXECUTIVE DAILY BRIEF
+${dateStr} · ${timeStr} ET
+UEI: KFF4PM5PM468 | CAGE: 8WJN9
+
+🚨 CRITICAL: Broward insurance gap — call NEA Insurance 305-221-2400
+🚨 CRITICAL: FL Minority Business Cert expired — renew immediately
+
+📊 EXECUTIVE SUMMARY
+${summary || scoutResult.slice(0,400)}
+
+🔍 NEW OPPORTUNITIES (Scout)
+${opps || scoutResult}
+
+⚔️ BID PIPELINE (Commander)
+${pipeline || cmdResult}
+
+🧠 COMPETITIVE INTEL
+${intelResult}
+
+🛡️ COMPLIANCE FLAGS (Shield)
+${flags || shieldResult}
+
+👑 CHAIRMAN ACTION REQUIRED
+${actions || '1. Call NEA Insurance 305-221-2400\n2. Renew FL Minority Business Cert\n3. Review new opportunities'}
+
+Generated by Shan Group AI Board · ${AGENTS.map(a=>a.name).join(', ')}`;
+}
+
+function copyBrief() {
+  navigator.clipboard.writeText(window._briefText || '').then(() => {
+    const btn = document.querySelector('#brief-overlay button');
+    if (btn) { btn.textContent = '✓ Copied!'; setTimeout(()=>btn.textContent='📋 Copy',2000); }
+  });
 }
 
 // ── CHAT ──────────────────────────────────────────────────────────────────────
