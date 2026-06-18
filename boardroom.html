@@ -166,6 +166,7 @@ canvas#board-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-eve
     <div class="hdr-btns">
       <div class="session-pill"><div class="pdot"></div><span id="sess-label">Initializing...</span></div>
       <button class="hdr-btn primary" id="btn-convene" onclick="conveneBoard()" disabled>👑 New Session</button>
+      <button class="hdr-btn" onclick="showSubscriberPanel()">📬 Subscribers</button>
       <button class="hdr-btn" onclick="clearAll()">Reset</button>
     </div>
   </header>
@@ -807,7 +808,8 @@ function copyBrief() {
 async function deliverBrief(data) {
   const {scoutResult, shieldResult, cmdResult, intelResult, summary, flags, pipeline, actions, opps, dateStr, timeStr} = data;
   const TELEGRAM_BOT_TOKEN = '8780939578:AAF6gVuR9eT5xUx8qmBME8pSGnaIatCueyw';
-  const TELEGRAM_CHAT_ID = '8547673026';
+  const subs = getSubscribers();
+  const chatIds = [...new Set(['8547673026', ...subs.map(s=>s.id)])];
 
   // Escape for Telegram MarkdownV2
   const esc = s => (s||'').replace(/([_*[\]()~`>#+=|{}.!\-])/g, '\\$1');
@@ -847,23 +849,29 @@ async function deliverBrief(data) {
 
   // Send Telegram
   try {
-    const tRes = await fetch('https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({chat_id: TELEGRAM_CHAT_ID, text: telegramMsg, parse_mode: 'MarkdownV2'}),
-    });
-    const tData = await tRes.json();
-    if (tData.ok) {
-      addFeed('vc', '\ud83d\udce8 Telegram brief sent to Ricky successfully');
-    } else {
-      // Fallback: send plain text
-      await fetch('https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({chat_id: TELEGRAM_CHAT_ID, text: 'SHAN GROUP DAILY BRIEF\n' + dateStr + '\n\nCRITICAL: Call NEA Insurance 305-221-2400\nFull brief emailed to alim@ahhcfl.com and rickypatel1982@gmail.com'}),
-      });
-      addFeed('vc', '\ud83d\udce8 Telegram brief sent (plain text)');
+    let sentCount = 0;
+    for (const chatId of chatIds) {
+      try {
+        const tRes = await fetch('https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({chat_id: chatId, text: telegramMsg, parse_mode: 'MarkdownV2'}),
+        });
+        const tData = await tRes.json();
+        if (tData.ok) {
+          sentCount++;
+        } else {
+          // Fallback plain text
+          await fetch('https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({chat_id: chatId, text: 'SHAN GROUP DAILY BRIEF\n' + dateStr + '\n\nCRITICAL: Call NEA Insurance 305-221-2400\nFull brief emailed to both addresses.'}),
+          });
+          sentCount++;
+        }
+      } catch(e) { console.log('Telegram error for', chatId, e.message); }
     }
+    addFeed('vc', '\ud83d\udce8 Telegram brief sent to ' + sentCount + ' subscriber' + (sentCount===1?'':'s'));
   } catch(e) {
     addFeed('vc', '\u26a0\ufe0f Telegram delivery failed: ' + e.message);
   }
@@ -939,6 +947,163 @@ function buildEmailHtml({scoutResult, shieldResult, cmdResult, intelResult, summ
 </div></body></html>\`;
 }
 
+
+
+// ── SUBSCRIBER MANAGEMENT ──────────────────────────────────────────────────────
+const STORAGE_KEY = 'sg_board_subscribers';
+
+function getSubscribers() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function saveSubscribers(subs) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(subs)); } catch(e) {}
+}
+
+function addSubscriber(name, telegramId, email) {
+  const subs = getSubscribers();
+  // Check duplicate
+  if (subs.find(s => s.id === telegramId)) return false;
+  subs.push({ name, id: telegramId, email: email || '', addedAt: new Date().toISOString() });
+  saveSubscribers(subs);
+  return true;
+}
+
+function removeSubscriber(telegramId) {
+  const subs = getSubscribers().filter(s => s.id !== telegramId);
+  saveSubscribers(subs);
+}
+
+function showSubscriberPanel() {
+  const subs = getSubscribers();
+  const panel = document.createElement('div');
+  panel.id = 'sub-panel';
+  panel.style.cssText = 'position:fixed;inset:0;z-index:600;background:rgba(7,8,13,0.97);backdrop-filter:blur(20px);overflow-y:auto;display:flex;align-items:center;justify-content:center';
+  panel.innerHTML = `
+    <div style="max-width:520px;width:100%;margin:0 auto;padding:32px 20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--gold);font-family:var(--mono);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px">BRIEF SUBSCRIBERS</div>
+          <div style="font-size:22px;font-weight:700;letter-spacing:-.03em">Telegram Subscribers</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:4px">Everyone who receives the daily Executive Brief</div>
+        </div>
+        <button onclick="document.getElementById('sub-panel').remove()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text2);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer">✕ Close</button>
+      </div>
+
+      <!-- HOW TO SUBSCRIBE -->
+      <div style="background:var(--card);border:1px solid rgba(79,142,247,0.2);border-radius:12px;padding:18px;margin-bottom:20px">
+        <div style="font-size:10px;font-weight:700;color:var(--blue);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">📱 How to Subscribe</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.7">
+          1. Open Telegram → search <span style="color:var(--gold);font-family:var(--mono)">@RJ_2_0_bot</span> → send <span style="color:var(--gold);font-family:var(--mono)">/start</span><br>
+          2. Go to <span style="color:var(--gold);font-family:var(--mono)">@userinfobot</span> → send <span style="color:var(--gold);font-family:var(--mono)">/start</span> → copy your ID<br>
+          3. Enter your details below and click Add
+        </div>
+      </div>
+
+      <!-- ADD NEW SUBSCRIBER -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px">
+        <div style="font-size:10px;font-weight:700;color:var(--text2);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px">➕ Add Subscriber</div>
+        <input id="sub-name" placeholder="Full name (e.g. Ali Mandsaurwala)" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:var(--sans);font-size:13px;color:var(--text);outline:none;margin-bottom:10px">
+        <input id="sub-tid" placeholder="Telegram ID (numbers only, e.g. 123456789)" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;margin-bottom:10px">
+        <input id="sub-email" placeholder="Email address (optional)" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:var(--sans);font-size:13px;color:var(--text);outline:none;margin-bottom:14px">
+        <button onclick="doAddSubscriber()" style="width:100%;background:var(--gold);color:#07080d;border:none;border-radius:8px;padding:11px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer">Add Subscriber →</button>
+        <div id="sub-msg" style="margin-top:8px;font-size:12px;font-family:var(--mono);text-align:center;min-height:16px"></div>
+      </div>
+
+      <!-- CURRENT SUBSCRIBERS -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px">
+        <div style="font-size:10px;font-weight:700;color:var(--text2);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px">👥 Current Subscribers (${subs.length + 1})</div>
+
+        <!-- Always show Ricky as admin -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:32px;height:32px;border-radius:50%;background:rgba(245,200,66,0.15);border:1px solid rgba(245,200,66,0.3);display:flex;align-items:center;justify-content:center;font-size:14px">👑</div>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--gold)">Ricky Patel</div>
+              <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">Admin · ID: 8547673026</div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--green);font-family:var(--mono);font-weight:700">ADMIN</div>
+        </div>
+
+        <div id="sub-list">
+          ${subs.length === 0
+            ? '<div style="text-align:center;padding:20px;color:var(--text3);font-family:var(--mono);font-size:12px">No additional subscribers yet</div>'
+            : subs.map(s => `
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:32px;height:32px;border-radius:50%;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px">👤</div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600">${s.name}</div>
+                    <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">ID: ${s.id}${s.email ? ' · ' + s.email : ''}</div>
+                  </div>
+                </div>
+                <button onclick="doRemoveSubscriber('${s.id}')" style="background:rgba(245,95,95,0.1);border:1px solid rgba(245,95,95,0.2);border-radius:6px;padding:4px 10px;color:var(--red);font-size:11px;font-family:var(--mono);cursor:pointer">Remove</button>
+              </div>`).join('')
+          }
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+}
+
+function doAddSubscriber() {
+  const name = document.getElementById('sub-name').value.trim();
+  const tid = document.getElementById('sub-tid').value.trim().replace(/\D/g,'');
+  const email = document.getElementById('sub-email').value.trim();
+  const msg = document.getElementById('sub-msg');
+
+  if (!name) { msg.style.color='var(--red)'; msg.textContent='Please enter a name'; return; }
+  if (!tid || tid.length < 5) { msg.style.color='var(--red)'; msg.textContent='Please enter a valid Telegram ID (numbers only)'; return; }
+
+  // Test the bot can reach them first
+  const BOT = '8780939578:AAF6gVuR9eT5xUx8qmBME8pSGnaIatCueyw';
+  msg.style.color='var(--gold)'; msg.textContent='Sending test message to verify...';
+
+  fetch('https://api.telegram.org/bot' + BOT + '/sendMessage', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      chat_id: tid,
+      text: '✅ You have been subscribed to Shan Group AI Board daily briefs.
+
+👑 You will receive the Executive Brief every morning after the board session.
+
+Powered by Shan Group AI Board · UEI: KFF4PM5PM468',
+    }),
+  }).then(r => r.json()).then(data => {
+    if (data.ok) {
+      const added = addSubscriber(name, tid, email);
+      if (added) {
+        msg.style.color='var(--green)';
+        msg.textContent='✓ ' + name + ' subscribed and notified on Telegram!';
+        document.getElementById('sub-name').value='';
+        document.getElementById('sub-tid').value='';
+        document.getElementById('sub-email').value='';
+        // Refresh panel
+        setTimeout(() => { document.getElementById('sub-panel').remove(); showSubscriberPanel(); }, 1200);
+      } else {
+        msg.style.color='var(--orange)'; msg.textContent='This Telegram ID is already subscribed';
+      }
+    } else {
+      msg.style.color='var(--red)';
+      msg.textContent='Could not reach that Telegram ID. Make sure they messaged the bot first (/start).';
+    }
+  }).catch(() => {
+    msg.style.color='var(--red)'; msg.textContent='Network error — check connection';
+  });
+}
+
+function doRemoveSubscriber(id) {
+  if (!confirm('Remove this subscriber?')) return;
+  removeSubscriber(id);
+  document.getElementById('sub-panel').remove();
+  showSubscriberPanel();
+}
 
 // ── CHAT ──────────────────────────────────────────────────────────────────────
 function buildChatPicker() {
