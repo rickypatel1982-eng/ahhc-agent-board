@@ -166,6 +166,7 @@ canvas#board-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-eve
     <div class="hdr-btns">
       <div class="session-pill"><div class="pdot"></div><span id="sess-label">Initializing...</span></div>
       <button class="hdr-btn primary" id="btn-convene" onclick="conveneBoard()" disabled>👑 New Session</button>
+      <button class="hdr-btn" onclick="runArchivist()">📜 Win/Loss Intel</button>
       <button class="hdr-btn" onclick="showSubscriberPanel()">📬 Subscribers</button>
       <button class="hdr-btn" onclick="clearAll()">Reset</button>
     </div>
@@ -229,6 +230,7 @@ const AGENTS = [
   {id:'recruiter',name:'Recruiter',     role:'Staffing',        icon:'👥', color:'#3ecf8e', bg:'rgba(62,207,142,0.12)'},
   {id:'pathfinder',name:'Pathfinder',   role:'Growth',          icon:'🗺️', color:'#a78bfa', bg:'rgba(167,139,250,0.12)'},
   {id:'liaison',  name:'Liaison',       role:'Relationships',   icon:'🤝', color:'#f5c842', bg:'rgba(245,200,66,0.12)'},
+  {id:'archivist',name:'Archivist',     role:'Win/Loss Intel',  icon:'📜', color:'#06b6d4', bg:'rgba(6,182,212,0.15)'},
 ];
 
 const PROMPTS = {
@@ -242,6 +244,7 @@ const PROMPTS = {
   recruiter:`You are RECRUITER for Shan Group LLC. ${CTX}\nBuild staffing plans. Output staffing matrix, timeline, deployment schedule, cost projection.`,
   pathfinder:`You are PATHFINDER for Shan Group LLC. ${CTX}\nStrategic growth. FL Minority Cert expired — renew now. Pursue 8(a), GSA 621I, IHS tribal, VA CCN, FEMA IDIQ. Identify new markets.`,
   liaison:`You are LIAISON for Shan Group LLC. ${CTX}\nRelationship management. Key contacts: Israel Segarra Hillsborough, Eric Gebbie OHA, Nick Mayernick FDEM. Broward Cone of Silence — only Purchasing 954-357-6400.`,
+  archivist:`You are ARCHIVIST for Shan Group LLC — win/loss intelligence and competitive benchmarking agent. ${CTX}\nYour role: Analyze bids Shan Group has lost or not pursued, identify who won similar contracts, and extract lessons. IMPORTANT CONTEXT: FPDS.gov was decommissioned February 2026 — all federal award data now lives on SAM.gov requiring a logged-in account. For state/county bids, award notices are typically published on the issuing agency's procurement portal (e.g. Broward County BidSync, Sarasota County Purchasing, Orange County Procurement). For each analysis provide: (1) WHO WON — company name, if publicly available; (2) AWARD VALUE — if disclosed; (3) LIKELY WIN FACTORS — based on public RFP scoring criteria (price weight vs technical weight, past performance requirements, certifications required); (4) WHAT WE COULD IMPROVE — specific, actionable gaps in our profile vs typical winning bidders in this space (e.g. certifications, geographic presence, staffing scale); (5) DEBRIEF RECOMMENDATION — note that Shan Group has a legal right to request a formal debrief from the contracting officer after any loss, and recommend doing so for high-value losses. Be honest and analytical — this is for internal learning, not bid drafting. Use ONLY verified data from this profile for our side; clearly mark any competitor information as "publicly reported" or "estimated based on typical scoring patterns" if not certain.`,
 };
 
 // ── LAYOUT — agent positions in a circle + VC in center ──────────────────────
@@ -483,6 +486,74 @@ async function callClaude(agentId, prompt) {
 }
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── ARCHIVIST — WIN/LOSS ANALYSIS ─────────────────────────────────────────────
+async function runArchivist() {
+  setAgent('archivist', 'thinking', 'Researching award history...', 'RESEARCHING');
+  addFeed('archivist', 'Pulling public award data on bids we lost and similar contracts we did not pursue...');
+  document.getElementById('sess-label').textContent = 'Archivist Running';
+
+  const conn = addConnection('archivist', 'vc', '📜', '#06b6d4');
+
+  let result;
+  try {
+    result = await callClaude('archivist',
+      `Run a win/loss intelligence report covering:
+1. Any of our submitted bids (Sarasota 242595MN, Orange County Y24-121, Pinellas 23-0509-RFP) that may have been lost — note these are listed as "Submitted" status, so check what's known publicly about award outcomes
+2. Similar government healthcare staffing contracts (NAICS 561320) in FL/OR that Shan Group did not bid on — what did winners typically have (certifications, scale, pricing approach)
+3. For Broward BARC GEN2124024B1 (currently pending, up to 3 vendors) — what factors typically separate winners from losers in multi-award behavioral health staffing RFPs
+4. Specific, actionable recommendations on what to improve before our next bid cycle
+5. Note our right to request a formal debrief from any contracting officer after a loss — recommend which losses (if any) warrant this
+
+Be honest, specific, and clearly distinguish verified facts about Shan Group from general industry patterns about competitors.`
+    );
+  } catch(e) {
+    result = 'Error: ' + e.message;
+  }
+
+  removeConnection(conn);
+  setAgent('archivist', 'speaking', 'Report ready', 'REPORTING');
+  addFeed('archivist', result.slice(0, 250) + (result.length > 250 ? '...' : ''));
+
+  showWinLossPanel(result);
+
+  await delay(1500);
+  resetAgent('archivist');
+  document.getElementById('sess-label').textContent = 'Board Standby';
+}
+
+function showWinLossPanel(content) {
+  const overlay = document.createElement('div');
+  overlay.id = 'winloss-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(7,8,13,0.97);backdrop-filter:blur(20px);overflow-y:auto;animation:brief-in .4s ease';
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+
+  overlay.innerHTML = `
+    <div style="max-width:720px;margin:0 auto;padding:40px 24px 80px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#06b6d4;font-family:var(--mono);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px">ARCHIVIST · ${dateStr}</div>
+          <div style="font-size:28px;font-weight:700;letter-spacing:-.04em;line-height:1.1;margin-bottom:6px">📜 Win/Loss Intelligence Report</div>
+          <div style="font-size:13px;color:var(--text2)">Competitive benchmarking and bid post-mortem analysis</div>
+        </div>
+        <button onclick="document.getElementById('winloss-overlay').remove()" style="background:var(--gold);border:none;border-radius:8px;padding:8px 14px;font-family:var(--sans);font-size:12px;font-weight:700;color:#07080d;cursor:pointer;flex-shrink:0">✕ Close</button>
+      </div>
+
+      <div style="background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:12.5px;color:#67e8f9;line-height:1.6">
+        ℹ️ FPDS.gov was decommissioned in February 2026 — federal award data now requires a SAM.gov login. State/county awards are checked against each agency's public procurement portal. Competitor details not independently verified are marked as estimated.
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;font-family:var(--mono);font-size:13px;color:var(--text2);line-height:1.8;white-space:pre-wrap">${content.replace(/</g,'&lt;')}</div>
+
+      <div style="margin-top:20px;display:flex;gap:10px">
+        <button onclick="window._wlText='${content.replace(/'/g,"\\'").replace(/\n/g,'\\n')}';navigator.clipboard.writeText(window._wlText)" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-family:var(--sans);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer">📋 Copy Report</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
 
 // ── BOARD SESSION ─────────────────────────────────────────────────────────────
 async function conveneBoard() {
