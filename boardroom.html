@@ -272,8 +272,10 @@ function computePositions() {
 // ── CANVAS — draw connections ─────────────────────────────────────────────────
 let activeConnections = []; // [{from, to, color, progress, packet}]
 let animFrame;
+let staticBackgroundCache = null; // cached grid+web image, avoids redrawing every frame
+let animLoopRunning = false; // tracks whether the rAF loop is currently active
 
-function drawCanvas() {
+function drawStaticBackground() {
   const canvas = document.getElementById('board-canvas');
   const wrap = document.getElementById('board-wrap');
   canvas.width = wrap.clientWidth;
@@ -301,7 +303,22 @@ function drawCanvas() {
     });
   });
 
-  // Draw active connections with animated packets
+  // Cache this static frame as an image so the dynamic loop can cheaply restore it
+  staticBackgroundCache = ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+function drawCanvas() {
+  const canvas = document.getElementById('board-canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Restore the cached static background instead of redrawing grid+web every frame
+  if (staticBackgroundCache) {
+    ctx.putImageData(staticBackgroundCache, 0, 0);
+  } else {
+    drawStaticBackground();
+  }
+
+  // Draw active connections with animated packets (the only part that actually changes)
   activeConnections.forEach(conn => {
     const p1 = agentPositions[conn.from];
     const p2 = agentPositions[conn.to];
@@ -339,13 +356,31 @@ function drawCanvas() {
   });
 }
 
+
+
 function animate() {
+  if (activeConnections.length === 0) {
+    // Nothing to animate — draw the static frame once and stop the rAF loop
+    // entirely instead of burning CPU/battery 60x/sec on an idle board.
+    drawCanvas();
+    animLoopRunning = false;
+    return;
+  }
   activeConnections.forEach(conn => {
     conn.progress += 0.012;
     if (conn.progress > 1) conn.progress = 0;
   });
   drawCanvas();
   animFrame = requestAnimationFrame(animate);
+}
+
+// Call this whenever activeConnections changes (addConnection/removeConnection)
+// to wake the animation loop back up if it had stopped.
+function ensureAnimating() {
+  if (!animLoopRunning) {
+    animLoopRunning = true;
+    animFrame = requestAnimationFrame(animate);
+  }
 }
 
 // ── RENDER AGENTS ─────────────────────────────────────────────────────────────
@@ -415,6 +450,7 @@ function resetAgent(id) { setAgent(id, 'idle', '', 'STANDBY'); }
 function addConnection(from, to, label, color) {
   const conn = { from, to, label, color: color || AGENTS.find(a=>a.id===from)?.color || '#fff', progress: 0 };
   activeConnections.push(conn);
+  ensureAnimating();
   return conn;
 }
 
@@ -802,7 +838,7 @@ function showExecutiveBrief({scoutResult, shieldResult, cmdResult, intelResult, 
 
       <div class="brief-section" style="animation-delay:.15s;background:var(--surface);border:1px solid rgba(245,164,66,0.2);border-radius:14px;padding:20px">
         <div style="font-size:10px;font-weight:700;color:var(--orange);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">⚔️ Bid Pipeline — Commander</div>
-        <div style="font-size:13px;color:var(--text2);line-height:1.65;font-family:var(--mono)">${(pipeline || cmdResult).replace(/\n/g,'<br>').replace(/(GO|✅)/g,'<strong style="color:var(--green)">$1</strong>').replace(/(NO-GO|❌)/g,'<strong style="color:var(--red)">$1</strong>').replace(/(\d+%)/g,'<strong style="color:var(--orange)">$1</strong>')}</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65;font-family:var(--mono)">${(pipeline || cmdResult).replace(/\n/g,'<br>').replace(/(NO-GO|❌)/g,'<strong style="color:var(--red)">$1</strong>').replace(/\bGO\b(?!<\/strong>)/g,'<strong style="color:var(--green)">GO</strong>').replace(/✅/g,'<strong style="color:var(--green)">✅</strong>').replace(/(\d+%)/g,'<strong style="color:var(--orange)">$1</strong>')}</div>
       </div>
 
       <div class="brief-section" style="animation-delay:.2s;background:var(--surface);border:1px solid rgba(167,139,250,0.2);border-radius:14px;padding:20px">
@@ -1242,7 +1278,7 @@ async function sendChat() {
     const reply = d.content[0].text;
     chatHistory.push({role:'assistant',content:reply});
     document.getElementById(tid)?.remove();
-    msgs.innerHTML += `<div class="cmsg"><div class="cav">${agent.icon}</div><div class="cbub" style="color:var(--text)">${reply.replace(/\n/g,'<br>').replace(/</g,'&lt;')}</div></div>`;
+    msgs.innerHTML += `<div class="cmsg"><div class="cav">${agent.icon}</div><div class="cbub" style="color:var(--text)">${reply.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div></div>`;
     msgs.scrollTop = msgs.scrollHeight;
     setAgent(selectedChatAgent, 'speaking', 'Replied ✓', 'REPLIED');
     await delay(2000);
@@ -1269,11 +1305,15 @@ function init() {
   computePositions();
   renderAgents();
   buildChatPicker();
-  animate();
+  drawStaticBackground();
+  drawCanvas(); // draw the initial idle frame once (no rAF loop needed until a session starts)
   window.addEventListener('resize', () => {
     computePositions();
     renderAgents();
     buildChatPicker();
+    staticBackgroundCache = null; // size changed — force a fresh background redraw
+    drawStaticBackground();
+    drawCanvas();
   });
   // Auto-start board session after brief delay
   setTimeout(() => {
