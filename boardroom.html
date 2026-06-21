@@ -914,7 +914,7 @@ function copyBrief() {
 // ── EMAIL + TELEGRAM DELIVERY ─────────────────────────────────────────────────
 async function deliverBrief(data) {
   const {scoutResult, shieldResult, cmdResult, intelResult, summary, flags, pipeline, actions, opps, dateStr, timeStr} = data;
-  const TELEGRAM_BOT_TOKEN = '8780939578:AAF6gVuR9eT5xUx8qmBME8pSGnaIatCueyw';
+  const TELEGRAM_BOT_TOKEN = '8780939578:AAEQUUtMgIuOS0tx9my_GROjIcgBBS4EPxE';
   const subs = getSubscribers();
   const chatIds = [...new Set(['8547673026', ...subs.map(s=>s.id)])];
 
@@ -1186,7 +1186,7 @@ function doAddSubscriber() {
   if (!tid || tid.length < 5) { msg.style.color='var(--red)'; msg.textContent='Please enter a valid Telegram ID (numbers only)'; return; }
 
   // Test the bot can reach them first
-  const BOT = '8780939578:AAF6gVuR9eT5xUx8qmBME8pSGnaIatCueyw';
+  const BOT = '8780939578:AAEQUUtMgIuOS0tx9my_GROjIcgBBS4EPxE';
   msg.style.color='var(--gold)'; msg.textContent='Sending test message to verify...';
 
   fetch('https://api.telegram.org/bot' + BOT + '/sendMessage', {
